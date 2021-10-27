@@ -1,15 +1,16 @@
 #yaml file for creating the rett_recall scripting environ.
-name: rett_recall
+name: rett_memory
 dependencies:
-    - numpy=1.19.*
-    - matplotlib=3.3.*
-    - pandas=1.1.*
-    - ipython=7.19.*
-    - tifffile=2020.10.1
-    - pillow=8.0.*
-    - scikit-image=0.17.*
-    - pytest=6.1.*
-    - notebook=6.1.*
-    - graphviz=2.40.*
-    - pydot=1.4.*
-    - xlrd=1.2.*
+    - numpy
+    - scipy
+    - matplotlib
+    - pandas
+    - ipython
+    - tifffile
+    - pillow
+    - scikit-image
+    - pytest
+    - notebook
+    - graphviz
+    - pydot
+    - xlrd
