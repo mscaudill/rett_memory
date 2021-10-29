@@ -217,7 +217,7 @@ class ShiftsDataFrame:
     
         if not hasattr(self, 'df'):
             self.convert()
-        savepath = paths.dataframes.joinpath('alignments.pkl')
+        savepath = paths.data.joinpath('alignments.pkl')
         self.df.to_pickle(savepath)
         print('saved alignments to {}'.format(savepath))
 
