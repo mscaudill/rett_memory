@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.signal as sps
 
 from scripting.rett_memory import paths
 
@@ -66,7 +67,7 @@ def plot_source_mip():
 
 def plot_mipsource_rois(cells=[13, 32, 174, 145], annulus_cell=174):
     """Plots the max intensity prijection  of the source images and
-    a selection of cell rois for a zoomed region.
+    a selection of cell rois for a zoomed region for mouse N006_wt.
 
     The source images are computed from the entire recording session (i.e.
     across all environmental contexts.
@@ -95,7 +96,8 @@ def plot_mipsource_rois(cells=[13, 32, 174, 145], annulus_cell=174):
     return ax
 
 def plot_cxt_mips(cxts=['Train', 'Fear', 'Neutral', 'Fear_2']):
-    """Plots the source images computed from each context independently. 
+    """Plots the source images computed from each context independently for
+    mouse N006_wt. 
 
     The source images are computed indepently for each context.
     """
@@ -113,7 +115,7 @@ def plot_cxt_mips(cxts=['Train', 'Fear', 'Neutral', 'Fear_2']):
 def plot_cxt_mips_zoom(cxts=['Train', 'Fear', 'Neutral', 'Fear_2']):
     """Plots a zoomed region of the context source images along with the
     boundaries of the detected ROIs derived from the source images across
-    the entire recording session.
+    the entire recording session for mouse N006_wt
     """
 
     path = paths.data.joinpath('N006_wt_cxtsources.pkl')
@@ -137,6 +139,101 @@ def plot_cxt_mips_zoom(cxts=['Train', 'Fear', 'Neutral', 'Fear_2']):
     fig.tight_layout()
     return axarr
 
+def plot_displacements_N006(cxts=['T', 'F1', 'N1', 'F2']):
+    """Plots a time-series of concatenated displacements one for each
+    context in cxts for mouse N006_wt."""
+
+    # open the dataframe of alignments for all mice
+    path = paths.data.joinpath('alignments.pkl')
+    with open(path, 'rb') as infile:
+        df = pickle.load(infile)
+    #mulitply by um/pix and compute displacements
+    df = df * 1.2
+    data = df.loc[('wt', 'N006')].to_dict()
+    displacements = [np.sqrt(np.sum(data[cxt]**2, 1)) for cxt in cxts]
+    displacements = np.concatenate(displacements)
+    #remove displacements shorter than 300 ms
+    height = 3 * np.std(displacements)
+    idxs, _ = sps.find_peaks(displacements, height=height)
+    for idx in idxs:
+        if np.min(displacements[idx-3:idx+3]) >= height:
+            continue
+        else:
+            displacements[idx-3:idx+3] = np.NaN
+    #plot displacements
+    fig, ax = plt.subplots()
+    time = np.linspace(0, len(displacements)/20, len(displacements))/60
+    ax.plot(time, displacements, color='tab:gray')
+    ax.set_xlabel('Time (mins)')
+    ax.set_ylabel('Displacement (um)')
+    [ax.axvline(5*i, color='k', linestyle=':', zorder=-1) 
+            for i in range(1, len(cxts))]
+    ax.set_ylim(0, None)
+    return ax
+
+def hist_N006_displacements(cxts=['T', 'F1', 'N1', 'F2']):
+    """Constructs a histogram of displacements one per context in cxts for
+    mouse N006_wt."""
+
+    # open the dataframe of alignments for all mice
+    path = paths.data.joinpath('alignments.pkl')
+    with open(path, 'rb') as infile:
+        df = pickle.load(infile)
+    #mulitply by um/pix and compute displacements
+    df = df * 1.2
+    data = df.loc[('wt', 'N006')].to_dict()
+    displacements = [np.sqrt(np.sum(data[cxt]**2, 1)) for cxt in cxts]
+    displacements = np.concatenate(displacements)
+    #remove displacements shorter than 300 ms
+    height = 3 * np.std(displacements)
+    idxs, _ = sps.find_peaks(displacements, height=height)
+    for idx in idxs:
+        if np.min(displacements[idx-3:idx+3]) >= height:
+            continue
+        else:
+            displacements[idx-3:idx+3] = np.NaN
+    #plot displacements
+    fig, ax = plt.subplots()
+    ax.hist(displacements, bins=6, color='tab:gray', align='left',
+            rwidth=.95)
+    ax.set_xlabel('Displacement (um)')
+    ax.set_ylabel('Num. Frames')
+    return ax
+
+def hist_displacements(cxts=['T', 'F1', 'N1', 'F2']):
+    """Constructs a histogram of all displacements across all mice for all
+    contexts in cxts."""
+
+    # open the dataframe of alignments for all mice
+    path = paths.data.joinpath('alignments.pkl')
+    with open(path, 'rb') as infile:
+        df = pickle.load(infile)
+    #mulitply by um/pix and compute displacements
+    df = df * 1.2
+    results = []
+    for index in df.index:
+        data = df.loc[index]
+        displacements = [np.sqrt(np.sum(data[cxt]**2, 1)) for cxt in cxts]
+        displacements = np.concatenate(displacements)
+        
+        #remove displacements < 300 ms
+        height = 3 * np.std(displacements)
+        idxs, _ = sps.find_peaks(displacements, height=height)
+        for idx in idxs:
+            m = 6000 * len(cxts)
+            if np.min(displacements[min(idx-3,0):max(idx+3,m)]) >= height:
+                continue
+            else:
+                displacements[idx-3:idx+3] = np.NaN
+        
+        results.append(displacements)
+    results = np.stack(results, axis=0)
+    fig, axarr = plt.subplots(1, len(cxts))
+    for idx, cxt in enumerate(cxts):
+        subarr = results[:, idx*6000:(idx+1)*6000]
+        axarr[idx].hist(subarr.flatten())
+    return axarr
+
 
 
 
@@ -146,11 +243,13 @@ if __name__ == '__main__':
     #axarr = plot_basis()
     #axarr = plot_sources()
     #ax = plot_source_mip()
-    plot_mipsource_rois()
-    
+    #ax = plot_mipsource_rois()
     #axarr = plot_cxt_mips() 
     #axarr = plot_cxt_mips_zoom() 
-
+    #ax = plot_displacements_N006()
+    #ax = hist_N006_displacements()
+    
+    ax = hist_displacements(cxts=['T','F1', 'N1', 'F2'])
     plt.show()
 
 
