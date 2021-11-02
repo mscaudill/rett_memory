@@ -8,7 +8,7 @@ from itertools import zip_longest
 from scipy import fft
 from pathlib import Path
 
-from scripting.rett_memory.__data__ import paths
+from scripting.rett_memory import paths
 from scripting.rett_memory.dialogs import standard_dialog
 from midas.readers import Tiff
 
@@ -45,12 +45,12 @@ class Alignment:
             self.dirs = [standard_dialog('askdirectory',
                                          initialdir=self.base)]
         else:
-            self.dirs = os.listdir(self.base)
+            self.dirs = [Path(self.base).joinpath(x) for x in
+                         os.listdir(self.base)]
         img_paths = []
         for d in self.dirs:
-            p = Path(d)
-            img_name = str(p.stem) + '_combined.tif'
-            img_paths.append(p.joinpath(img_name))
+            img_name = str(d.stem) + '_combined.tif'
+            img_paths.append(d.joinpath(img_name))
         self.img_paths = img_paths
 
     def _open(self, path):
@@ -70,10 +70,10 @@ class Alignment:
 
         ls = []
         for idx in range(start, stop, step):
-            ls.append(fp.read(idx))
+            ls.append(tiff.read(idx))
         return np.stack(ls)
 
-    def _shifts(self, arr, ref_img): 
+    def _shifts(self, arr, ref_image, normalize=False): 
         """Computes the shift in pixels of each image in arr relative to
         a reference image using the FFT algorithm. 
 
@@ -86,21 +86,23 @@ class Alignment:
         Returns: len(arr) x 2 of row, col shifts in pixels
         """
        
-        fft_ref = fft.fft2(ref_img)
-        fft_ref_conj = fft_ref.conjugate()
-        fft_arr = fft.fft2(arr, axes=(-2, -1))
-        cross_power = (fft_arr * fft_ref_conj) / (
-                  abs(fft_arr) * abs(fft_ref))
-        diracs = abs(np.fft.ifft2(cross_power))
-        #get row, col pos of each peak for each dirac img in diracs
+        fft_ref = fft.fft2(ref_image)
+        fft_arr = fft.fft2(arr, axes=(-2,-1))
+        #normalization
+        if normalize:
+            fft_product = (fft_arr * fft_ref.conjugate()) / (
+                           abs(fft_arr) * abs(fft_ref))
+        else:
+            fft_product = fft_arr * fft_ref.conjugate()
+        cc = abs(np.fft.ifft2(fft_product))
         locs = []
-        for frame in diracs:
+        for frame in cc:
             locs.append(np.unravel_index(np.argmax(frame), frame.shape))
         peaks = np.array(locs)
         rows, cols = peaks[:,0], peaks[:,1]
         #shifts > 1/2 image size are negative shifts
         rows[rows > arr.shape[1] // 2] -= arr.shape[1]
-        cols[cols > arr.shape[2] // 2] -= arr.shape[2]
+        cols[cols > arr.shape[1] // 2] -= arr.shape[2]
         return peaks
 
     def reference(self, tiff, context):
@@ -151,7 +153,9 @@ class Alignment:
                 cxt_shifts = []
                 for idx, (start, stop) in enumerate(pts):
                     arr = self._read(fp, start, stop)
-                    shifts = self._shifts(arr, ref_img)
+                    #demean the images
+                    x = arr - ref_img
+                    shifts = self._shifts(x, ref_img)
                     cxt_shifts.append(shifts)
                     msg = 'Computing shifts for context: {}, {}/{} complete'
                     print(msg.format(context, idx+1, len(starts)), end='\r')
@@ -159,9 +163,9 @@ class Alignment:
                 results[context] = np.concatenate(cxt_shifts, axis=0)
             fp.close_link()
             # save the results
-            save_path = img_path.parent.joinpath('shifts.pkl')
+            save_path = img_path.parent.joinpath('xy_shifts.pkl')
             with open(save_path, 'wb') as outfile:
-                pickle.dump(result, outfile)
+                pickle.dump(results, outfile)
                 elapsed = time.perf_counter() - t0
             print('Shifts saved to {} in {} s'.format(save_path, elapsed))
 
@@ -175,7 +179,7 @@ class ShiftsDataFrame:
         """Initialize ShiftsDF with dirs to locate shifts for each mouse."""
 
         self.dirs = [self.base.joinpath(d) for d in os.listdir(self.base)]
-        self.shift_paths = [d.joinpath('shifts.pkl') for d in self.dirs]
+        self.shift_paths = [d.joinpath('xy_shifts.pkl') for d in self.dirs]
 
     def _index_from_path(self, path):
         """Extracts the mouse_id and geno from the path name to use as the
@@ -225,6 +229,11 @@ class ShiftsDataFrame:
 
 
 if __name__ == '__main__':
+
+    """
+    aligner = Alignment()
+    aligner.shifts(chunksize=600)
+    """
 
     a = ShiftsDataFrame()
     a.convert()

@@ -95,7 +95,7 @@ def plot_mipsource_rois(cells=[13, 32, 174, 145], annulus_cell=174):
             ax.plot(boundary[:,1], boundary[:,0], color='green', linewidth=2)
     return ax
 
-def plot_cxt_mips(cxts=['Train', 'Fear', 'Neutral', 'Fear_2']):
+def plot_cxt_mips(cxts=['Fear', 'Neutral', 'Fear_2']):
     """Plots the source images computed from each context independently for
     mouse N006_wt. 
 
@@ -112,7 +112,7 @@ def plot_cxt_mips(cxts=['Train', 'Fear', 'Neutral', 'Fear_2']):
     fig.tight_layout()
     return axarr
 
-def plot_cxt_mips_zoom(cxts=['Train', 'Fear', 'Neutral', 'Fear_2']):
+def plot_cxt_mips_zoom(cxts=['Fear', 'Neutral', 'Fear_2']):
     """Plots a zoomed region of the context source images along with the
     boundaries of the detected ROIs derived from the source images across
     the entire recording session for mouse N006_wt
@@ -152,6 +152,8 @@ def plot_displacements_N006(cxts=['T', 'F1', 'N1', 'F2']):
     data = df.loc[('wt', 'N006')].to_dict()
     displacements = [np.sqrt(np.sum(data[cxt]**2, 1)) for cxt in cxts]
     displacements = np.concatenate(displacements)
+
+    """
     #remove displacements shorter than 300 ms
     height = 3 * np.std(displacements)
     idxs, _ = sps.find_peaks(displacements, height=height)
@@ -160,6 +162,8 @@ def plot_displacements_N006(cxts=['T', 'F1', 'N1', 'F2']):
             continue
         else:
             displacements[idx-3:idx+3] = np.NaN
+    """
+
     #plot displacements
     fig, ax = plt.subplots()
     time = np.linspace(0, len(displacements)/20, len(displacements))/60
@@ -171,7 +175,7 @@ def plot_displacements_N006(cxts=['T', 'F1', 'N1', 'F2']):
     ax.set_ylim(0, None)
     return ax
 
-def hist_N006_displacements(cxts=['T', 'F1', 'N1', 'F2']):
+def hist_N006_displacements(cxts=['F1', 'N1', 'F2']):
     """Constructs a histogram of displacements one per context in cxts for
     mouse N006_wt."""
 
@@ -184,14 +188,6 @@ def hist_N006_displacements(cxts=['T', 'F1', 'N1', 'F2']):
     data = df.loc[('wt', 'N006')].to_dict()
     displacements = [np.sqrt(np.sum(data[cxt]**2, 1)) for cxt in cxts]
     displacements = np.concatenate(displacements)
-    #remove displacements shorter than 300 ms
-    height = 3 * np.std(displacements)
-    idxs, _ = sps.find_peaks(displacements, height=height)
-    for idx in idxs:
-        if np.min(displacements[idx-3:idx+3]) >= height:
-            continue
-        else:
-            displacements[idx-3:idx+3] = np.NaN
     #plot displacements
     fig, ax = plt.subplots()
     ax.hist(displacements, bins=6, color='tab:gray', align='left',
@@ -212,34 +208,68 @@ def hist_displacements(cxts=['T', 'F1', 'N1', 'F2']):
     df = df * 1.2
     results = []
     for index in df.index:
+        print(index)
         data = df.loc[index]
         displacements = [np.sqrt(np.sum(data[cxt]**2, 1)) for cxt in cxts]
         displacements = np.concatenate(displacements)
-        
-        #remove displacements < 300 ms
-        height = 3 * np.std(displacements)
-        idxs, _ = sps.find_peaks(displacements, height=height)
-        for idx in idxs:
-            m = 6000 * len(cxts)
-            if np.min(displacements[min(idx-3,0):max(idx+3,m)]) >= height:
-                continue
-            else:
-                displacements[idx-3:idx+3] = np.NaN
-        
         results.append(displacements)
     results = np.stack(results, axis=0)
     fig, axarr = plt.subplots(1, len(cxts))
     for idx, cxt in enumerate(cxts):
         subarr = results[:, idx*6000:(idx+1)*6000]
         axarr[idx].hist(subarr.flatten())
-    return axarr
+    return axarr, results
 
+def overlap_cxt_mips_zoom(cxts=['Fear', 'Neutral', 'Fear_2']):
+    """
+    """
+
+    # FIXME
+
+    path = paths.data.joinpath('N006_wt_cxtsources.pkl')
+    with open(path, 'rb') as infile:
+        data = pickle.load(infile)
+    mips = {name: np.max(sources, axis=0) for name, sources in data.items()}
+    fig, axarr = plt.subplots(1, len(cxts)+1, sharex=True, sharey=True)
+    # load the roi boundaries and annuli
+    with open(paths.data.joinpath('N006_wt_rois.pkl'), 'rb') as infile:
+        rois = pickle.load(infile)
+    # plot the zoomed context sources
+    for cxt, ax in zip(cxts, axarr[:-1]):
+        ax.imshow(mips[cxt], cmap='gray')
+        #ax.set_xlim(325, 425)
+        #ax.set_ylim(385, 485)
+        #ax.invert_yaxis()
+        # plot the roi boundaries
+        for cell in range(len(rois['boundaries'])):
+            boundary = rois['boundaries'][cell]
+            ax.plot(boundary[:,1], boundary[:,0], color='green')
+    
+    #plot the memory cells
+    mask = mips['Fear'] - mips['Neutral']
+    F1 = mips['Fear'] > 3 * np.std(mips['Fear'])
+    N = mips['Neutral'] > 3 * np.std(mips['Neutral'])
+    F2 = mips['Fear_2'] > 3 * np.std(mips['Neutral'])
+    mask = np.logical_and(F1, ~N)
+    result = np.logical_and(mask, F2)
+    axarr[-1].imshow(result, cmap='gray')
+    #axarr[-1].set_xlim(325, 425)
+    #axarr[-1].set_ylim(385, 485)
+    #axarr[-1].invert_yaxis()
+    # plot the roi boundaries
+    for cell in range(len(rois['boundaries'])):
+        boundary = rois['boundaries'][cell]
+        axarr[-1].plot(boundary[:,1], boundary[:,0], color='red')
+
+    fig.tight_layout()
+    return axarr, mips
 
 
 
 
 if __name__ == '__main__':
 
+    plt.ion()
     #axarr = plot_basis()
     #axarr = plot_sources()
     #ax = plot_source_mip()
@@ -249,7 +279,8 @@ if __name__ == '__main__':
     #ax = plot_displacements_N006()
     #ax = hist_N006_displacements()
     
-    ax = hist_displacements(cxts=['T','F1', 'N1', 'F2'])
+    #ax, results = hist_displacements(cxts=['T','F1', 'N1', 'F2'])
+    ax, mips = overlap_cxt_mips_zoom()
     plt.show()
 
 
