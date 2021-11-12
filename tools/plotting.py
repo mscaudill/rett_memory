@@ -28,10 +28,12 @@ def _positions(num_groups, num_categories, width, gap=None):
         right = w/2 + k * w + w 
         cat0_locs = np.arange(left, right, w)
         #FIXME added on 2-9-2020 to handle groups > categories overlap
+        """
         p = [cat0_locs + c for c in range(num_categories)]
         p = [el + 2*w*i for i, el in enumerate(p)]
-        #return np.array([cat0_locs + c for c in range(num_categories)]).T
-        return np.array(p).T
+        """
+        return np.array([cat0_locs + c for c in range(num_categories)]).T
+        #return np.array(p).T
     else:
         #odd # of groups -> index falls at center of a box
         k = (num_groups - 1) / 2
