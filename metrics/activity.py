@@ -230,15 +230,15 @@ class NetworkBursts:
         names (list):           list of resultant column names
     """
 
-    def __init__(self, df, filt, filt_args):
+    def __init__(self, df):
         """Initialize this location metric with a dataframe of series data
         and a behavioral filter.
         """
 
-        self.df = filt(df, **filt_args) if filt else df
+        self.df = df
         #get the specific columns needed
-        self.signal_cols = ptools.label_select(self.df, like='signals')
-        self.spike_cols = ptools.label_select(self.df, like='spikes')
+        self.signal_cols = pdtools.label_select(self.df, like='signals')
+        self.spike_cols = pdtools.label_select(self.df, like='spikes')
         #get the sub dataframes and Series' needed
         self.sample_rate = np.unique(self.df['sample_rate'])[0]
         #set the names of the result columns
@@ -253,7 +253,7 @@ class NetworkBursts:
         """
 
         self.std = width
-        metric = activity.NetworkActivity(self.df, width)
+        metric = NetworkActivity(self.df, width)
         cell_activities = metric.activities
         network_activities = metric.measure()
         return cell_activities, network_activities
