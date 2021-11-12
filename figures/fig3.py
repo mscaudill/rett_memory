@@ -22,6 +22,7 @@ def rasters(exps=RASTER_EXPS, cxts=RASTER_CXTS):
     df = pd.read_pickle(DATAPATH)
     df = df.sort_index()
     bdf = pd.read_pickle(BEHAVIORPATH)
+    print('data loaded')
     activities = activity.NetworkActivity(df, std=5).measure()
     fig, axarr = plt.subplots(2, 2, figsize=(8,3), sharex=True)
     for idx, (exp, cxt) in enumerate(zip(exps, cxts)):
@@ -41,9 +42,18 @@ def rasters(exps=RASTER_EXPS, cxts=RASTER_CXTS):
         freezes = behavior.threshold(bdf.loc[exp][cxt + '_freeze'], 
                                      btimes, 2)
         axarr[1, idx].plot(btimes, freezes)
+    #compute the network activity thresholds
+    print('computing thresholds')
+    measurer = activity.NetworkBursts(df)
+    #compute the activity traces for each cell using a width of 5
+    cell_activities, _ = measurer.activity(5)
+    thresholds = measurer.threshold(cell_activities, shifts=[500, 1500],
+                                    repeats=10, nstds=1.5)
+    heights = [thresholds.loc[e][c] for e,c in zip(exps, cxts)]
+    [axarr[0, i].axhline(3*y + 16, color='r', linestyle='--') for i, y in
+            enumerate(heights)]
 
     # FIXME 
-    # ADD THRESHOLD
     # ADD SCALEBAR
 
     fig.tight_layout()
