@@ -89,12 +89,14 @@ def crossings(signal, level=0, interpolate=False, nan_handler=zero_nans):
     #Signal edges
     if derivative[crosses[0]] < 0:
         #signal is decreasing from start so add NaN as first + cross index
-        prepend = [np.NaN]
+        #prepend = [np.NaN]
+        prepend = [0]
     else:
         prepend = []
     if derivative[crosses[-1]] > 0:
         #signal is increasing at end so add NaN as last - cross index
-        postpend = [np.NaN]
+        #postpend = [np.NaN]
+        postpend = [len(signal)-1]
     else:
         postpend = []
     #concatenate making a float array of indices
