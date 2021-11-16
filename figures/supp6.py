@@ -11,8 +11,8 @@ from scripting.rett_memory.tools import plotting, pdtools, signals
 
 DATAPATH = paths.data.joinpath('signals_df.pkl')
 BEHAVIORPATH = paths.data.joinpath('behavior_df.pkl')
-RASTER_EXPS = [('wt','N124', 'NA'), ('het', 'N229', 'NA')]
-#RASTER_EXPS = [('wt','N062', 'NA'), ('het', 'N229', 'NA')]
+#RASTER_EXPS = [('wt','N124', 'NA'), ('het', 'N229', 'NA')]
+RASTER_EXPS = [('wt','N083', 'NA'), ('het', 'N014', 'NA')]
 RASTER_CXTS = ['Fear_2'] * 2
 
 
@@ -73,4 +73,4 @@ def rasters(exps=RASTER_EXPS, cxts=RASTER_CXTS):
 
 if __name__ == '__main__':
 
-    #rasters()
+    rasters()
