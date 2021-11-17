@@ -6,7 +6,7 @@ from matplotlib.colors import ListedColormap
 from matplotlib.patches import Rectangle
 
 from scripting.rett_memory import paths
-from scripting.rett_memory.metrics import activity, behavior
+from scripting.rett_memory.metrics import activity, behavior, rates
 from scripting.rett_memory.tools import plotting, pdtools, signals
 
 DATAPATH = paths.data.joinpath('signals_df.pkl')
@@ -14,6 +14,10 @@ BEHAVIORPATH = paths.data.joinpath('behavior_df.pkl')
 #RASTER_EXPS = [('wt','N124', 'NA'), ('het', 'N229', 'NA')]
 RASTER_EXPS = [('wt','N083', 'NA'), ('het', 'N014', 'NA')]
 RASTER_CXTS = ['Fear_2'] * 2
+
+ANIMALPATH = paths.data.joinpath('P80_animals.pkl')
+INDEXES = [('wt',),('het',)]
+CONTEXTS = ['Neutral', 'Fear', 'Fear_2']
 
 
 def rasters(exps=RASTER_EXPS, cxts=RASTER_CXTS, df=None, bdf=None):
@@ -72,6 +76,89 @@ def rasters(exps=RASTER_EXPS, cxts=RASTER_CXTS, df=None, bdf=None):
     fig.tight_layout()
     plt.show()
 
+def coactivity_boxplot(groups=INDEXES, categories=CONTEXTS, 
+                       ylabel='Coactive Cell Percentage', showfliers=False):
+    """Constructs a boxplot of the percentage of coactive cells during the
+    peak of the network activity trace for figure 3C of the paper."""
+
+    #read the dataframe and the animals to plot
+    df = pd.read_pickle(DATAPATH)
+    with open(ANIMALPATH, 'rb') as infile:
+        animals = pickle.load(infile)
+    data = pdtools.filter_df(df, animals)
+    #make the coactivity metric
+    metric = activity.Coactivity(data)
+    percentages = metric.measure(band=20, level=1, width=5, 
+                                 shifts=[500, 1500], repeats=10, nstds=1.5)
+    #percentages = percentages.fillna(0)
+    result_dict = pdtools.df_to_dict(percentages, groups, categories)
+    #make categorical boxplot
+    plotting.boxplot(result_dict, categories, groups, ylabel=ylabel,
+                     showfliers=showfliers)
+    return percentages
+
+def coactivity_rates_boxplot(groups=[('wt',slice(None),True), 
+                                     ('het',slice(None), True),
+                                     ('wt', slice(None), False),
+                                     ('het', slice(None), False)],
+                             categories=['Fear_2'], 
+                             ylabel='Coactive Cell Rates', showfliers=False):
+    """
+
+    """
+
+    #read the dataframe and the animals to plot
+    df = pd.read_pickle(DATAPATH)
+    with open(ANIMALPATH, 'rb') as infile:
+        animals = pickle.load(infile)
+    data = pdtools.filter_df(df, animals)
+    #compute the spike rates
+    spike_rates = rates.Rate(data).measure()
+    #identify cells as co-active or non co-active
+    cocells = activity.CoactiveCells(data).measure().astype(bool)
+    noncocells = ~cocells
+    #get the rates of the co/non-co active cells
+    corates = spike_rates.loc[cocells.Fear_2]
+    noncorates = spike_rates.loc[noncocells.Fear_2]
+    #groupby geno and mouse id only (drop treatment, cell id)
+    group_idx = data.index.names[:-2]
+    mean_corates = corates.groupby(by=group_idx).apply(np.mean)
+    mean_noncorates = noncorates.groupby(by=group_idx).apply(np.mean)
+    #add coactive column to each df
+    mean_corates = mean_corates.assign(coactive=np.ones(len(mean_corates),
+                                       dtype=bool))
+    mean_noncorates = mean_noncorates.assign(coactive=np.zeros(
+                                    len(mean_noncorates), dtype=bool))
+    #move the coactive column to an index
+    mean_corates = mean_corates.set_index('coactive', append=True)
+    mean_noncorates = mean_noncorates.set_index('coactive', append=True)
+    #join the dataframes
+    mean_rates = pd.concat([mean_corates, mean_noncorates])
+
+    result_dict = pdtools.df_to_dict(mean_corates, groups, categories)
+    #make categorical boxplot
+    plotting.boxplot(result_dict, categories, groups, ylabel=ylabel,
+                     showfliers=showfliers)
+    return mean_rates
+
+
+
+
+
+
+
+
+
 if __name__ == '__main__':
 
+    from scripting.rett_memory.tools import stats
+    plt.ion()
+
+    #Fig 3 A-B
     #rasters()
+
+    #Fig 3C
+    #results = coactivity_boxplot()
+    #s = stats.row_compare(results)
+    
+    co_rates = coactivity_rates_boxplot()
