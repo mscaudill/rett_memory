@@ -108,6 +108,7 @@ def row_compare(df, columns=None, **kwargs):
             x, y = x[~x_nan], y[~y_nan]
             n1, n2 = len(x), len(y)
             u, p = stats.mannwhitneyu(x, y, **kwargs)
+            u = min(u, len(x)*len(y) - u)
             effect = u / (n1*n2)
             stat = Stat('WMW', U=u, p=p, n1=n1, n2=n2, effect=effect)
             comparisons.update({pair: stat})
