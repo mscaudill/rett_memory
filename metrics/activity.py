@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 import scipy as sp
 
-from scipy.signal import windows
+from operator import itemgetter
+from scipy.signal import windows, find_peaks
 from functools import partial
 from copy import copy
 
@@ -362,3 +363,243 @@ class NetworkBursts:
         results = pd.DataFrame.from_dict(dresults, orient='index')
         results.index.names = network_acts.index.names
         return results
+
+
+class Coactivity:
+    """A metric that measures the number of cells participating in the
+    largest network burst.
+
+    Attrs:
+        df (pd.DataFrame):          dataframe containing spike indices
+        spike_cols (list):      list of spike column names
+        signal_cols (list):     list of signal column names
+        sample_rate (int):      sample rate assumed consistent across df
+        names (list):           list of resultant column names
+    """
+
+    def __init__(self, df):
+        """Initialize with a dataframe containing spike indices."""
+
+        self.df = df
+        #get the specific columns needed
+        self.signal_cols = pdtools.label_select(self.df, like='signals')
+        self.spike_cols = pdtools.label_select(self.df, like='spikes')
+        #get the sub dataframes and Series' needed
+        self.sample_rate = np.unique(self.df['sample_rate'])[0]
+        #set the names of the result columns
+        self.names = [c.replace('_spikes','') for c in self.spike_cols]
+
+    def activity(self, width):
+        """Returns the cell and network activities by gaussian convolution.
+
+        Args:
+            width (int):        width of gaussian convolving window in
+                                samples
+        """
+
+        self.std = width
+        metric = NetworkActivity(self.df, width)
+        cell_activities = metric.activities
+        network_activities = metric.measure()
+        return cell_activities, network_activities
+
+    def threshold(self, activities, shifts, repeats, nstds):
+        """Determines the minimum height of a significant network burst.
+        
+        The threshold is determined by constructing repeat number of
+        surrogate datasets where each activity trace has been randomly
+        shifted and the network activity recomputed. Events exceeding nstds
+        of the maximum network amplitude observed in the surrogate data are
+        considered significant.
+
+        Args:
+            activities (df):       dataframe of cell act traces
+            shifts (tuple):        min/max amt to shift each cell act trace
+            repeats (int):         number of times to repeat act trace 
+                                   shifting
+            nstds (float):         number of stds from mean 
+        """
+        
+        #remove the cell level to be averaged over
+        acts = activities.droplevel('cell')
+        
+        def athreshold(exp, cxt):
+            """Returns a single threshold for a given exp and context of the
+            cell activities."""
+
+            data = np.stack(acts.loc[exp][cxt], axis=0)
+            maxes = []
+            for rep in range(repeats):
+                np.random.seed(rep) #make shifting reproducible
+                rolls = zip(data, np.random.randint(*shifts, len(data)))
+                #compute cell surrogates and network surrogate
+                surrogates = np.array([np.roll(*tup) for tup in rolls]) 
+                net_surrogates = np.nanmean(surrogates, axis=0)
+                maxes.append(np.nanmax(net_surrogates))
+            #return the threshold as nstds above the mean
+            return np.mean(maxes) + nstds * np.std(maxes)
+
+        #call athreshold on each row, col index
+        dresults = dict()
+        for exp in acts.index.unique():
+            dresults[exp] = {cxt: athreshold(exp, cxt) for cxt in acts}
+        #convert to a df and return
+        results = pd.DataFrame.from_dict(dresults, orient='index')
+        results.index.names = acts.index.names
+        return results
+
+    def largest_peak(self, network_activities, thresholds):
+        """Returns a dataframe of the largest network peak.
+        
+        Args:
+            network_activities (df):        dataframe of network activites
+            thresholds (df):                dataframe of height thresholds
+                                            significant network act 
+                                            deflections
+        """
+
+        def largest(data, height):
+            """Returns index of the largest peak in data exceeding height."""
+
+            data[np.isnan(data)] = 0
+            x, props = find_peaks(data, height)
+            heights = props['peak_heights']
+            if not x.any():
+                return np.NAN
+            else:
+                return sorted(zip(x, heights), key=itemgetter(1))[-1][0]
+
+        #find largest peak for each exp and context
+        dresults = dict()
+        for exp in network_activities.index:
+            cxt_results = dict()
+            for cxt in network_activities.columns:
+                data = network_activities.loc[exp][cxt]
+                threshold = thresholds.loc[exp][cxt]
+                cxt_results[cxt] = largest(data, threshold)
+            dresults[exp] = cxt_results
+        #convert to a df and return
+        results = pd.DataFrame.from_dict(dresults, orient='index')
+        results.index.names = network_activities.index.names
+        return results
+
+    def measure(self, band=50, level=1, width=5, shifts=[500, 1500], 
+                repeats=10, nstds=1.5):
+        """Returns a dataframe of network densities.
+        
+        Args:
+            band (int):         number of samples centered on peak to look
+                                for coactive cells (Default=50 => cells with
+                                activity upto 25 samples prior or after
+                                peak are included in measure)
+            level (float):      firing rate in Hz for cell to be considered
+                                as part of network burst (Default is 1 Hz)
+            width (int):        width of convolving gaussian for cell
+                                activity 
+            shifts (seq):       min and max shift amounts for constructing
+                                surrogate data for determining significant 
+                                peaks (Default is between 500 and 1500
+                                samples)
+            repeats (int):      number of surrogate datasets to construct to
+                                determine network peak significance (Default
+                                is 10 repeats)
+            nstds (float):      number of stds above the mean for a peak to
+                                be significant (Default is 1.5 standard 
+                                deviations)
+        """
+
+        #compute activities and thresholds
+        cell_acts, net_acts = self.activity(width=width)
+        thresholds = self.threshold(cell_acts, shifts, repeats, nstds)
+        peaks = self.largest_peak(net_acts, thresholds)
+        #create a band array
+        band = np.array([-band//2, band//2])
+        #determine which cells are active in the band
+        dresults = dict()
+        for exp in peaks.index:
+            cxt_results = dict()
+            for cxt in peaks.columns:
+                if np.isnan(peaks.loc[exp][cxt]):
+                    cxt_results[cxt] = np.NAN
+                    continue
+                #get all activities and slice out band
+                acts_arr = np.stack(cell_acts.loc[exp][cxt], axis=0)
+                sl = slice(*(band + peaks.loc[exp][cxt]).astype(int))
+                max_vals = np.max(acts_arr[:,sl], axis=1)
+                #count those above level
+                density = np.count_nonzero(max_vals > level) / len(acts_arr)
+                cxt_results[cxt] = density
+            dresults[exp] = cxt_results
+        #convert to a df and return
+        results = pd.DataFrame.from_dict(dresults, orient='index')
+        results.index.names = net_acts.index.names
+        return results
+
+
+class CoactiveCells(Coactivity):
+    """Returns a boolean dataframe indicating whether individual cells are
+    part of the coactive ensemble."""
+
+    def measure(self, band=20, level=1, width=5, shifts=[500, 1500], 
+                repeats=10, nstds=1.5):
+        """Measures whether each cell exceeds or fails to exceed a threshold
+        for being considered a coactive cell.
+
+        Args:
+            band (int):         number of samples centered on peak to look
+                                for coactive cells (Default=50 => cells with
+                                activity upto 25 samples prior or after
+                                peak are included in measure)
+            level (float):      firing rate in Hz for cell to be considered
+                                as part of network burst (Default is 1 Hz)
+            width (int):        width of convolving gaussian for cell
+                                activity 
+            shifts (seq):       min and max shift amounts for constructing
+                                surrogate data for determining significant 
+                                peaks (Default is between 500 and 1500
+                                samples)
+            repeats (int):      number of surrogate datasets to construct to
+                                determine network peak significance (Default
+                                is 10 repeats)
+            nstds (float):      number of stds above the mean for a peak to
+                                be significant (Default is 1.5 standard 
+                                deviations)
+        """
+
+        #compute activities and thresholds
+        cell_acts, net_acts = self.activity(width=width)
+        thresholds = self.threshold(cell_acts, shifts, repeats, nstds)
+        peaks = self.largest_peak(net_acts, thresholds)
+        #create a band array
+        band = np.array([-band//2, band//2])
+        #determine which cells are active in the band
+        for exp in cell_acts.index:
+            for cxt in cell_acts.columns:
+                sl = slice(*(band + peaks.loc[exp[:-1]][cxt]).astype(int))
+                arr = np.array(cell_acts.loc[exp][cxt])[sl]
+                if arr.size > 0:
+                    #FIXME should I compare with level?
+                    if np.max(arr) >= thresholds.loc[exp[:-1]][cxt]:
+                        cell_acts.loc[exp][cxt] = True
+                    else:
+                        cell_acts.loc[exp][cxt] = False
+                else:
+                    cell_acts.loc[exp][cxt] = False
+        return cell_acts
+
+
+if __name__ == '__main__':
+
+    from scripting.rett_memory import paths
+    import pickle
+
+    ANIMALPATH = paths.data.joinpath('P80_animals.pkl')
+
+
+    df = pd.read_pickle(paths.data.joinpath('signals_df.pkl'))
+    with open(ANIMALPATH, 'rb') as infile:
+        animals = pickle.load(infile)
+    data = pdtools.filter_df(df, animals)
+
+    metric = CoactiveCells(data)
+    cc = metric.measure()
