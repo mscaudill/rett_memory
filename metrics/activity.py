@@ -575,16 +575,18 @@ class CoactiveCells(Coactivity):
         #determine which cells are active in the band
         for exp in cell_acts.index:
             for cxt in cell_acts.columns:
-                sl = slice(*(band + peaks.loc[exp[:-1]][cxt]).astype(int))
-                arr = np.array(cell_acts.loc[exp][cxt])[sl]
-                if arr.size > 0:
-                    #FIXME should I compare with level?
-                    if np.max(arr) >= thresholds.loc[exp[:-1]][cxt]:
+                #if there is no peak they are all non-coactive (i.e. False)
+                if np.isnan(peaks.loc[exp[:-1]][cxt]):
+                    cell_acts.loc[exp][cxt] = False
+                else:
+                    sl = slice(*(band + peaks.loc[exp[:-1]][cxt]).astype(int))
+                    arr = np.array(cell_acts.loc[exp][cxt])[sl]
+                    if np.max(arr) >= level:
+                        #cell contributes to peak i.e. coactive
                         cell_acts.loc[exp][cxt] = True
                     else:
+                        #cell does not contribute to peak i.e. non-coactive
                         cell_acts.loc[exp][cxt] = False
-                else:
-                    cell_acts.loc[exp][cxt] = False
         return cell_acts
 
 
