@@ -2,16 +2,16 @@ import pickle
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import networkx as nx
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Rectangle
 
 from scripting.rett_memory import paths
-from scripting.rett_memory.metrics import activity, behavior, rates
+from scripting.rett_memory.metrics import activity, behavior, rates, graphs
 from scripting.rett_memory.tools import plotting, pdtools, signals
 
 DATAPATH = paths.data.joinpath('signals_df.pkl')
 BEHAVIORPATH = paths.data.joinpath('behavior_df.pkl')
-#RASTER_EXPS = [('wt','N124', 'NA'), ('het', 'N229', 'NA')]
 RASTER_EXPS = [('wt','N083', 'NA'), ('het', 'N014', 'NA')]
 RASTER_CXTS = ['Fear_2'] * 2
 
@@ -97,15 +97,13 @@ def coactivity_boxplot(groups=INDEXES, categories=CONTEXTS,
                      showfliers=showfliers)
     return percentages
 
-def coactivity_rates_boxplot(groups=[('wt',slice(None),True), 
-                                     ('het',slice(None), True),
-                                     ('wt', slice(None), False),
-                                     ('het', slice(None), False)],
+def coactivity_rates_boxplot(groups=[('wt',), ('het',),
+                                     ('wt', True), ('het', True),
+                                     ('wt', False),('het', False)],
                              categories=['Fear_2'], 
-                             ylabel='Coactive Cell Rates', showfliers=False):
-    """
-
-    """
+                             ylabel='Event Rates', showfliers=False):
+    """Boxplots the rates for all cells, coactive cells and non-coactive 
+    cells."""
 
     #read the dataframe and the animals to plot
     df = pd.read_pickle(DATAPATH)
@@ -116,10 +114,9 @@ def coactivity_rates_boxplot(groups=[('wt',slice(None),True),
     spike_rates = rates.Rate(data).measure()
     #identify cells as co-active or non co-active
     cocells = activity.CoactiveCells(data).measure().astype(bool)
-    noncocells = ~cocells
     #get the rates of the co/non-co active cells
     corates = spike_rates.loc[cocells.Fear_2]
-    noncorates = spike_rates.loc[noncocells.Fear_2]
+    noncorates = spike_rates.loc[~cocells.Fear_2]
     #groupby geno and mouse id only (drop treatment, cell id)
     group_idx = data.index.names[:-2]
     mean_corates = corates.groupby(by=group_idx).apply(np.mean)
@@ -134,14 +131,62 @@ def coactivity_rates_boxplot(groups=[('wt',slice(None),True),
     mean_noncorates = mean_noncorates.set_index('coactive', append=True)
     #join the dataframes
     mean_rates = pd.concat([mean_corates, mean_noncorates])
-
-    result_dict = pdtools.df_to_dict(mean_corates, groups, categories)
+    #convert the rates to a dict for plotting
+    g = groups[2:] #exclude the merged rates
+    result_dict = pdtools.df_to_dict(mean_rates, g, categories)
+    # compute the merged spike rates
+    all_rates = rates.Rate(data).measure(cell_avg=True)
+    all_rates_dict = pdtools.df_to_dict(all_rates, categories=categories,
+                                   groups=groups[:2])
+    #update the results dict with the merged rates
+    result_dict.update(all_rates_dict)
     #make categorical boxplot
     plotting.boxplot(result_dict, categories, groups, ylabel=ylabel,
                      showfliers=showfliers)
-    return mean_rates
+    return mean_rates, all_rates
 
 
+def sample_graphs(exps=[('wt', 'N087', 'NA'), ('het', 'N229', 'NA'),
+                        ('wt','N008', 'NA'), ('het','N014','NA'),
+                        ('wt','N083','NA'),('het','sn221','NA')]):
+
+
+
+    """
+    exps=[('wt', 'N087', 'NA'),('het', 'N229', 'NA'),
+                    ('wt', 'N008', 'NA'), ('het','N014','NA'),
+                    ('wt','N083','NA'),('het','N075','NA'),
+                    ('wt','N087','NA'),('het','sn221','NA'),
+                    ('wt','N019','NA'),('het','N075','NA')]
+    """
+
+    #read in needed dataframes
+    pairs_df = pd.read_pickle(paths.data.joinpath('correlated_pairs_df.pkl'))
+    hd_df = pd.read_pickle(paths.data.joinpath('high_degree_df.pkl'))
+    rois_df = pd.read_pickle(paths.data.joinpath('rois_df.pkl'))
+
+    fig, axarr = plt.subplots(len(exps), 2, sharex='row', sharey='row')
+    for row, exp in enumerate(exps):
+        for col, cxt in enumerate(('Neutral', 'Fear_2')):
+            pairs = pairs_df.loc[exp][cxt]
+            hds = hd_df.loc[exp][cxt]
+            #create the graph
+            G = nx.Graph()
+            G.add_edges_from(pairs[:,:2])
+            #get the high degree subgraph
+            g = graphs.subgraph(G, hds)
+            centroids = rois_df.loc[exp]['centroid'][hds]
+            pos = dict(zip(hds, centroids))
+            #convert px pos to um positions
+            pos = {k: (pos[0]/0.83, pos[1]/0.8) for k, pos in pos.items()}
+            color = 'tab:blue' if 'wt' in exp else 'tab:orange'
+            graphs.draw(g, pos=pos, with_labels=False,
+                                  node_color=color, edge_color='tab:gray', 
+                                  node_size=30, ax=axarr[row, col],
+                                  width=0.5)
+            axarr[row, col].tick_params(left=True, bottom=True, 
+                                        labelleft=True, labelbottom=True)
+    plt.show()
 
 
 
@@ -160,5 +205,10 @@ if __name__ == '__main__':
     #Fig 3C
     #results = coactivity_boxplot()
     #s = stats.row_compare(results)
-    
-    co_rates = coactivity_rates_boxplot()
+   
+    """Fig 3D
+    split_rates, all_rates = coactivity_rates_boxplot()
+    s = stats.row_compare(results)
+    """
+
+    sample_graphs()
