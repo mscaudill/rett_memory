@@ -165,7 +165,7 @@ def sample_graphs(exps=[('wt', 'N087', 'NA'), ('het', 'N229', 'NA'),
     hd_df = pd.read_pickle(paths.data.joinpath('high_degree_df.pkl'))
     rois_df = pd.read_pickle(paths.data.joinpath('rois_df.pkl'))
 
-    fig, axarr = plt.subplots(len(exps), 2, sharex='row', sharey='row')
+    fig, axarr = plt.subplots(len(exps), 2, sharex=True, sharey=True)
     for row, exp in enumerate(exps):
         for col, cxt in enumerate(('Neutral', 'Fear_2')):
             pairs = pairs_df.loc[exp][cxt]
@@ -183,11 +183,35 @@ def sample_graphs(exps=[('wt', 'N087', 'NA'), ('het', 'N229', 'NA'),
             graphs.draw(g, pos=pos, with_labels=False,
                                   node_color=color, edge_color='tab:gray', 
                                   node_size=30, ax=axarr[row, col],
-                                  width=0.5)
+                                  width=0.25)
             axarr[row, col].tick_params(left=True, bottom=True, 
                                         labelleft=True, labelbottom=True)
     plt.show()
 
+#FIXME
+def hd_rates():
+    """Constructs a boxplot of the event rates of the HD cells in the Fear
+    recall context."""
+
+    hds = HD_CELLS['Fear_2'].explode()
+    hds = hds.reset_index()
+    hd_index = pd.MultiIndex.from_frame(hds, 
+                    names=['geno', 'mouse_id', 'treatment', 'cell'])
+    hd_spikes = SERIES_DF.loc[hd_index]
+    recall_results = spike_rates.boxplot(hd_spikes, groups=[('wt',),('het',)], 
+                        categories=['Fear_2'], ylabel='Mean Event Rate',
+                        showfliers = False)
+    #add the median rates for all cells in neutral context
+    ax = plt.gca()
+    all_results = Rate(SERIES_DF, filt=filters.percentile,
+            filt_args=dict(q=0.2)).measure(cell_avg=True)
+    neutral_medians = all_results['Neutral'].groupby('geno').apply(
+                                                                np.median)
+    ax.axhline(neutral_medians['wt'], color='tab:blue', linestyle='--')
+    ax.axhline(neutral_medians['het'], color='tab:orange', linestyle='--')
+    recall_stats = df_stats.row_compare(recall_results)
+
+    return neutral_medians, recall_results, recall_stats
 
 
 
