@@ -149,6 +149,7 @@ def coactivity_rates_boxplot(groups=[('wt',), ('het',),
 def sample_graphs(exps=[('wt', 'N087', 'NA'), ('het', 'N229', 'NA'),
                         ('wt','N008', 'NA'), ('het','N014','NA'),
                         ('wt','N083','NA'),('het','sn221','NA')]):
+    """Plots sample graphs for 3 WT and 3 RTT mice for panel F of Fig 3."""
 
 
 
@@ -188,30 +189,101 @@ def sample_graphs(exps=[('wt', 'N087', 'NA'), ('het', 'N229', 'NA'),
                                         labelleft=True, labelbottom=True)
     plt.show()
 
-#FIXME
-def hd_rates():
-    """Constructs a boxplot of the event rates of the HD cells in the Fear
-    recall context."""
+def ensemble_size_boxplot(groups=INDEXES, categories=CONTEXTS, **kwargs):
+    """Constructs a boxplot of the number of High-degree cells in each group
+    and context.
 
-    hds = HD_CELLS['Fear_2'].explode()
-    hds = hds.reset_index()
-    hd_index = pd.MultiIndex.from_frame(hds, 
-                    names=['geno', 'mouse_id', 'treatment', 'cell'])
-    hd_spikes = SERIES_DF.loc[hd_index]
-    recall_results = spike_rates.boxplot(hd_spikes, groups=[('wt',),('het',)], 
-                        categories=['Fear_2'], ylabel='Mean Event Rate',
-                        showfliers = False)
-    #add the median rates for all cells in neutral context
-    ax = plt.gca()
-    all_results = Rate(SERIES_DF, filt=filters.percentile,
-            filt_args=dict(q=0.2)).measure(cell_avg=True)
-    neutral_medians = all_results['Neutral'].groupby('geno').apply(
-                                                                np.median)
-    ax.axhline(neutral_medians['wt'], color='tab:blue', linestyle='--')
-    ax.axhline(neutral_medians['het'], color='tab:orange', linestyle='--')
-    recall_stats = df_stats.row_compare(recall_results)
+    Args:
+        groups (list):              list of dataframe keys to display
+        categories (list):          list of context names to display on plot
 
-    return neutral_medians, recall_results, recall_stats
+    Returns: dataframe of counts
+    """
+
+    hd_df = pd.read_pickle(paths.data.joinpath('high_degree_df.pkl'))
+    #count the cells for each exp and context
+    results_df = hd_df.applymap(len)
+    #compute dict keyed on groups with np.arr values one col per cat.
+    results = pdtools.df_to_dict(results_df, groups, categories)
+    plotting.boxplot(results, categories, groups, **kwargs)
+    return results_df
+
+def enemble_degree_boxplot(groups=INDEXES, categories=CONTEXTS, **kwargs):
+    """Constructs a boxplot of the average degree of the high degree cells.
+    
+    Args:
+        groups (list):              list of dataframe keys to display
+        categories (list):          list of context names to display on plot
+    
+    Returns: dataframe of degrees
+    """
+
+    #read in needed dataframes
+    pairs_df = pd.read_pickle(paths.data.joinpath('correlated_pairs_df.pkl'))
+    hd_df = pd.read_pickle(paths.data.joinpath('high_degree_df.pkl'))
+
+    def avg_deg(arr, hd_df):
+        """Returns average degree of high-degree cells in a pairs array."""
+        
+        #make graph of pairs and extract high-degree subgraph
+        G = graphs.make_graph(arr[:,:2])
+        g = graphs.subgraph(G, hd_df)
+        return graphs.avg_degree(g)
+    
+    result = dict()
+    contexts = pairs_df.columns
+    for ntup in pairs_df.itertuples():
+        result[ntup.Index] = {cxt: avg_deg(getattr(ntup, cxt), 
+                                           hd_df.loc[ntup.Index][cxt]) 
+                              for cxt in contexts}
+    results_df = pd.DataFrame.from_dict(result, orient='index')
+    results_df.index.names = pairs_df.index.names
+    #compute dict keyed on groups with np.arr values one col per cat.
+    results = pdtools.df_to_dict(results_df, groups, categories)
+    plotting.boxplot(results, categories, groups, **kwargs)
+    return results_df
+
+def high_degree_rates(groups=None, categories=None, **kwargs):
+    """ """
+
+    #read the dataframe and the animals to plot
+    df = pd.read_pickle(DATAPATH)
+    with open(ANIMALPATH, 'rb') as infile:
+        animals = pickle.load(infile)
+    data = pdtools.filter_df(df, animals)
+    #compute the spike rates of all cells
+    spike_rates = rates.Rate(data).measure()
+    #read in the high_degree cells df
+    hd_df = pd.read_pickle(paths.data.joinpath('high_degree_df.pkl'))
+    
+    #make a boolean df filled with False & same index as spike_rates
+    hd_bool_df = pd.DataFrame(0, spike_rates.index, 
+                              spike_rates.columns).astype(bool)
+    #set the hd_bool df to True where there is a high_degree cell
+    for context in hd_bool_df.columns:
+        for exp in hd_bool_df.index:
+            #if cell is in hd_df at this exp and context -- set to True
+            if exp[-1] in hd_df.loc[exp[:-1]][context]:
+                hd_bool_df.loc[exp][context] = True
+
+    #fetch hd, non-hd and all rates in Fear_2            
+    hd_rates = spike_rates.loc[hd_bool_df.Fear_2]
+    non_hd_rates = spike_rates.loc[~hd_bool_df.Fear_2]
+    all_rates = spike_rates.Fear_2
+
+    #add a new index called HD that designates if cell is high-degree
+    hd_rates = hd_rates.assign(HD = np.ones(len(hd_rates),dtype=bool))
+    non_hd_rates = non_hd_rates.assign(HD = np.zeros(len(non_hd_rates)),
+                                       dtype=bool)
+    hd_rates = hd_rates.set_index('HD', append=True)
+    non_hd_rates = non_hd_rates.set_index('HD', append=False)
+    return hd_rates, non_hd_rates
+    
+    
+
+
+
+
 
 
 
@@ -223,16 +295,32 @@ if __name__ == '__main__':
     from scripting.rett_memory.tools import stats
     plt.ion()
 
-    #Fig 3 A-B
-    #rasters()
+    """#Fig 3 A-B
+    rasters()
+    """
 
-    #Fig 3C
-    #results = coactivity_boxplot()
-    #s = stats.row_compare(results)
+    """#Fig 3C
+    results = coactivity_boxplot()
+    s = stats.row_compare(results)
+    """
    
-    """Fig 3D
+    """#Fig 3D
     split_rates, all_rates = coactivity_rates_boxplot()
     s = stats.row_compare(results)
     """
 
+    """#Fig 3F
     sample_graphs()
+    """
+
+    """#Fig 3G
+    results = ensemble_size_boxplot(showfliers=False)
+    s = stats.column_compare(results)
+    """
+
+    """#Fig 3H
+    results = enemble_degree_boxplot(showfliers=False)
+    s  =stats.column_compare(results)
+    """
+
+    hd_rates = high_degree_rates()
