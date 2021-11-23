@@ -92,7 +92,7 @@ def df_to_dict(results_df, groups, categories):
             data = results_df.loc[exp][cxt]
             cxt_results[cxt] = data
         r_dict[exp] = cxt_results
-
+    
     results = dict()
     for group in groups:
         #get all context dicts for this geno
