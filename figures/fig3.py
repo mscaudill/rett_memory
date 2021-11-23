@@ -243,7 +243,7 @@ def enemble_degree_boxplot(groups=INDEXES, categories=CONTEXTS, **kwargs):
     plotting.boxplot(results, categories, groups, **kwargs)
     return results_df
 
-def high_degree_rates(groups=None, categories=None, **kwargs):
+def high_degree_rates( ylabel='Event Rates', showfliers=False, **kwargs):
     """ """
 
     #read the dataframe and the animals to plot
@@ -260,67 +260,152 @@ def high_degree_rates(groups=None, categories=None, **kwargs):
     hd_bool_df = pd.DataFrame(0, spike_rates.index, 
                               spike_rates.columns).astype(bool)
     #set the hd_bool df to True where there is a high_degree cell
-    for context in hd_bool_df.columns:
-        for exp in hd_bool_df.index:
+    for exp in hd_bool_df.index:
+        for context in hd_bool_df.columns:
             #if cell is in hd_df at this exp and context -- set to True
             if exp[-1] in hd_df.loc[exp[:-1]][context]:
                 hd_bool_df.loc[exp][context] = True
 
-    #fetch hd, non-hd and all rates in Fear_2            
-    hd_rates = spike_rates.loc[hd_bool_df.Fear_2]
-    non_hd_rates = spike_rates.loc[~hd_bool_df.Fear_2]
-    all_rates = spike_rates.Fear_2
-
-    #add a new index called HD that designates if cell is high-degree
-    hd_rates = hd_rates.assign(HD = np.ones(len(hd_rates),dtype=bool))
-    non_hd_rates = non_hd_rates.assign(HD = np.zeros(len(non_hd_rates)),
-                                       dtype=bool)
-    hd_rates = hd_rates.set_index('HD', append=True)
-    non_hd_rates = non_hd_rates.set_index('HD', append=False)
-    return hd_rates, non_hd_rates
+    #make dataframe of HD cell rates (non-HD will be marked as NAN)
+    hd_rates = hd_bool_df.mask(hd_bool_df == True, spike_rates)
+    hd_rates = hd_rates.mask(hd_rates == False, other=np.NAN)
+    #and make dataframe of non-HD cell rates 
+    nhd_rates = hd_bool_df.mask(hd_bool_df == False, spike_rates)
+    nhd_rates = nhd_rates.mask(nhd_rates == True, other=np.NAN)
     
-    
+    #extract and store rates for plotting
+    results = dict()
+    results[('het', 'HD')] = np.array(hd_rates.loc[('het',)][
+                                                ['Neutral','Fear_2']],
+                                                dtype=float)
 
+    results[('het', 'NONHD')] = np.array(nhd_rates.loc[('het',)][
+                                                ['Neutral','Fear_2']],
+                                                dtype=float)
 
+    results[('wt')] = np.array(spike_rates.loc[('wt',)][
+                                                ['Neutral','Fear_2']],
+                                                dtype=float)
 
+    results[('het')] = np.array(spike_rates.loc[('het',)][
+                                                ['Neutral','Fear_2']],
+                                                dtype=float)
 
+    plotting.boxplot(results, ['Neutral', 'Fear_2'], groups=[
+                     ('wt'), ('het'), ('het', 'HD'),('het','NONHD')], 
+                     ylabel=ylabel, showfliers=showfliers, **kwargs)
 
-
-
+    return results
 
 
 
 if __name__ == '__main__':
 
     from scripting.rett_memory.tools import stats
+    from scipy.stats import kruskal
     plt.ion()
 
     """#Fig 3 A-B
     rasters()
     """
 
-    """#Fig 3C
+    """
+    #Fig 3C
     results = coactivity_boxplot()
     s = stats.row_compare(results)
+    print('wt medians')
+    print(results.loc[('wt',)].median())
+    print('wt IQRS')
+    print(results.loc[('wt',)].quantile(q=[.25, .75]))
+    print('WT Counts\n', results.loc[('wt')].count())
+    print('_____________')
+    print('rtt medians')
+    print(results.loc[('het',)].median())
+    print('rett IQRS')
+    print(results.loc[('het')].quantile([0.25, 0.75]))
+    print('RTT Counts\n', results.loc[('het')].count())
     """
-   
-    """#Fig 3D
-    split_rates, all_rates = coactivity_rates_boxplot()
+  
+    """
+    #Fig 3D
+    results, all_rates = coactivity_rates_boxplot()
     s = stats.row_compare(results)
+    print('wt medians')
+    print(all_rates.loc[('wt',)].median())
+    print('wt IQRS')
+    print(all_rates.loc[('wt',)].quantile(q=[.25, .75]))
+    print('WT Counts\n', all_rates.loc[('wt')].count())
+    
+    print('_____________')
+    print('RTT medians')
+    print(all_rates.loc[('het',)].median())
+    print('RTT IQRS')
+    print(all_rates.loc[('het',)].quantile(q=[.25, .75]))
+    print('RTT Counts\n', all_rates.loc[('het')].count())
+
+    print('_____________')
+    print('RTT Coactive medians')
+    print(results.loc[('het', slice(None), True)].median())
+    print('RTT Coactive IQRS')
+    print(results.loc[('het', slice(None), True)].quantile([0.25, 0.75]))
+    print('Counts\n', results.loc[('het', slice(None), True)].count())
+
+    print('_____________')
+    print('RTT NonCo medians')
+    print(results.loc[('het',slice(None), False)].median())
+    print('RTT NonCo IQRS')
+    print(results.loc[('het', slice(None), False)].quantile([0.25, 0.75]))
+    print('Counts\n', results.loc[('het', slice(None), False)].count())
+
+    kresult = kruskal(all_rates.loc[('wt',)]['Fear_2'],
+                      all_rates.loc[('het')]['Fear_2'],
+                      results.loc[('het', slice(None), True)]['Fear_2'],
+                      results.loc[('het', slice(None), False)]['Fear_2'])
     """
+
 
     """#Fig 3F
     sample_graphs()
     """
+
 
     """#Fig 3G
     results = ensemble_size_boxplot(showfliers=False)
     s = stats.column_compare(results)
     """
 
+
     """#Fig 3H
     results = enemble_degree_boxplot(showfliers=False)
     s  =stats.column_compare(results)
     """
 
-    hd_rates = high_degree_rates()
+
+    #Fig 3I
+    results = high_degree_rates()
+    print('WT medians')
+    print(np.nanmedian(results[('wt')][:,0]))
+    print('WT IQRS')
+    print(np.nanpercentile(results[('wt')][:,0], q=[25, 75]))
+    print('WT Counts\n', np.count_nonzero(~np.isnan(results[('wt')][:,0])))
+    print('_________')
+    print('RTT medians')
+    print(np.nanmedian(results[('het')][:,1]))
+    print('RTT IQRS')
+    print(np.nanpercentile(results[('het')][:,1], q=[25, 75]))
+    print('RTT Counts\n', np.count_nonzero(~np.isnan(results[('het')][:,1])))
+    print('_________')
+    print('RTT HD medians')
+    print(np.nanmedian(results[('het', 'HD')][:,1]))
+    print('RTT HD IQRS')
+    print(np.nanpercentile(results[('het', 'HD')][:,1], q=[25, 75]))
+    print('RTT HD Counts\n', 
+          np.count_nonzero(~np.isnan(results[('het', 'HD')][:,1])))
+    print('_________')
+    print('RTT NONHD medians')
+    print(np.nanmedian(results[('het', 'NONHD')][:,1]))
+    print('RTT NONHD IQRS')
+    print(np.nanpercentile(results[('het', 'NONHD')][:,1], q=[25, 75]))
+    print('RTT NONHD Counts\n', 
+          np.count_nonzero(~np.isnan(results[('het', 'NONHD')][:,1])))
+
