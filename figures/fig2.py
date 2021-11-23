@@ -79,6 +79,6 @@ def cdf(groups=INDEXES, categories=CONTEXTS, bins=200,
 
 if __name__ == '__main__':
 
-    #results = rates_boxplot()
+    results = rates_boxplot(cell_avg=False)
     #results = modulations_boxplot()
-    results = cdf()
+    #results = cdf()
