@@ -100,14 +100,59 @@ def plot_spikes(cell=CELLS[0], context=CONTEXT):
 
 if __name__ == '__main__':
 
-    from scipy import stats
+    from scripting.rett_memory.tools.stats import mwu
+    plt.ion()
 
     path = paths.data.joinpath('behavior_df.pkl')
-    df = pd.read_pickle(path)
-    percentages = freezing_boxplot(df)
-    U, _ = stats.mannwhitneyu(percentages[('wt',)][:,0],
-                              percentages[('het',)][:,0])
-    print(len(percentages[('wt',)]), len(percentages[('het',)]))
+    bdf = pd.read_pickle(path)
 
-    #plot_spikes()
+    #Fig 1B
+    recall_percentages = freezing_boxplot(bdf, contexts=['Fear','Fear_2'])
+    inset_percentages = freezing_boxplot(bdf, contexts=['Train','Neutral'])
 
+    print('WT Recall medians')
+    print(np.nanmedian(recall_percentages[('wt',)], axis=0))
+    print('WT Recall IQRS')
+    print(np.nanpercentile(recall_percentages[('wt',)], q=[25, 75], axis=0))
+    print('WT Recall Counts\n', recall_percentages[('wt',)].shape[0])
+
+    print('_________')
+    print('RTT Recall medians')
+    print(np.nanmedian(recall_percentages[('het',)], axis=0))
+    print('RTT Recall IQRS')
+    print(np.nanpercentile(recall_percentages[('het',)], q=[25, 75], axis=0))
+    print('RTT Recall Counts\n', recall_percentages[('het',)].shape[0])
+
+    print('_________')
+    print('WT Inset medians')
+    print(np.nanmedian(inset_percentages[('wt',)], axis=0))
+    print('WT Inset IQRS')
+    print(np.nanpercentile(inset_percentages[('wt',)], q=[25, 75], axis=0))
+    print('WT Inset Counts\n', inset_percentages[('wt',)].shape[0])
+
+    print('_________')
+    print('RTT Inset medians')
+    print(np.nanmedian(inset_percentages[('het',)], axis=0))
+    print('RTT Inset IQRS')
+    print(np.nanpercentile(inset_percentages[('het',)], q=[25, 75], axis=0))
+    print('RTT Inset Counts\n', inset_percentages[('het',)].shape[0])
+
+    print('_________')
+    #mann-whitney for recall contexts
+    U_Fear_1, _ = mwu(recall_percentages[('wt',)][:,0],
+                              recall_percentages[('het',)][:,0])
+    U_Fear_2, _ = mwu(recall_percentages[('wt',)][:,1],
+                              recall_percentages[('het',)][:,1])
+    #mann-whitney for train and neutral contexts
+    U_Train, _ = mwu(inset_percentages[('wt',)][:,0],
+                              inset_percentages[('het',)][:,0])
+    U_Neutral, _ = mwu(inset_percentages[('wt',)][:,1],
+                              inset_percentages[('het',)][:,1])
+    print(U_Fear_1, U_Fear_2, U_Train, U_Neutral)
+    #use table since asymptotic normal does not apply for n<20
+
+
+    """# Fig 1D
+    plot_signals()
+    plot_spikes()
+    """

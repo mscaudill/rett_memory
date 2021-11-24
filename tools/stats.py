@@ -117,3 +117,19 @@ def row_compare(df, columns=None, **kwargs):
     cols = df.columns if not columns else columns
     return {col: compare(df, col, **kwargs) for col in cols}
 
+
+def mwu(arr1, arr2, **kwargs):
+        """Computes the mann-whitney U statistic and asymptotic p-value
+
+        Args:
+            arr1, arr2:             1-D arrays to compare
+            kwargs:                 passed to scipy stats.mannwhitneyu
+        """
+
+        #ignore NAN policy
+        x = arr1[~np.isnan(arr1)]
+        y = arr2[~np.isnan(arr2)]
+        n, m = len(x), len(y)
+        u, p = stats.mannwhitneyu(arr1, arr2, **kwargs)
+        return min(u, n * m - u), p
+
