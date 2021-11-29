@@ -293,7 +293,8 @@ def high_degree_rates( ylabel='Event Rates', showfliers=False, **kwargs):
 
     plotting.boxplot(results, ['Neutral', 'Fear_2'], groups=[
                      ('wt'), ('het'), ('het', 'HD'),('het','NONHD')], 
-                     ylabel=ylabel, showfliers=showfliers, **kwargs)
+                     ylabel=ylabel, showfliers=showfliers, notch=True,
+                     bootstrap=1000, **kwargs)
 
     return results
 
@@ -302,17 +303,16 @@ def high_degree_rates( ylabel='Event Rates', showfliers=False, **kwargs):
 if __name__ == '__main__':
 
     from scripting.rett_memory.tools import stats
-    from scipy.stats import kruskal
+    from scipy.stats import kruskal, bootstrap
     plt.ion()
 
     """#Fig 3 A-B
     rasters()
     """
 
-    """
+    """ 
     #Fig 3C
     results = coactivity_boxplot()
-    s = stats.row_compare(results)
     print('wt medians')
     print(results.loc[('wt',)].median())
     print('wt IQRS')
@@ -324,6 +324,8 @@ if __name__ == '__main__':
     print('rett IQRS')
     print(results.loc[('het')].quantile([0.25, 0.75]))
     print('RTT Counts\n', results.loc[('het')].count())
+    print('_____________')
+    print(stats.row_compare(results))
     """
   
     """
@@ -368,18 +370,44 @@ if __name__ == '__main__':
     sample_graphs()
     """
 
-
-    """#Fig 3G
+    """
+    #Fig 3G
     results = ensemble_size_boxplot(showfliers=False)
+    print('wt medians')
+    print(results.loc[('wt',)].median())
+    print('wt IQRS')
+    print(results.loc[('wt',)].quantile(q=[.25, .75]))
+    print('WT Counts\n', results.loc[('wt')].count())
+    
+    print('_____________')
+    print('RTT medians')
+    print(results.loc[('het',)].median())
+    print('RTT IQRS')
+    print(results.loc[('het',)].quantile(q=[.25, .75]))
+    print('RTT Counts\n', results.loc[('het')].count())
+
     s = stats.column_compare(results)
     """
+    
 
-
-    """#Fig 3H
+    """
+    #Fig 3H
     results = enemble_degree_boxplot(showfliers=False)
+    print('wt medians')
+    print(results.loc[('wt',)].median())
+    print('wt IQRS')
+    print(results.loc[('wt',)].quantile(q=[.25, .75]))
+    print('WT Counts\n', results.loc[('wt')].count())
+    
+    print('_____________')
+    print('RTT medians')
+    print(results.loc[('het',)].median())
+    print('RTT IQRS')
+    print(results.loc[('het',)].quantile(q=[.25, .75]))
+    print('RTT Counts\n', results.loc[('het')].count())
+
     s  =stats.column_compare(results)
     """
-
 
     #Fig 3I
     results = high_degree_rates()
@@ -408,4 +436,25 @@ if __name__ == '__main__':
     print(np.nanpercentile(results[('het', 'NONHD')][:,1], q=[25, 75]))
     print('RTT NONHD Counts\n', 
           np.count_nonzero(~np.isnan(results[('het', 'NONHD')][:,1])))
+    
+    """
+    kresult = kruskal(results[('wt')][30:50,0],
+                      results[('het')][30:50,0],
+                      results[('het')][30:50,1],
+                      results[('het', 'HD')][30:50,1],
+                      results[('het', 'NONHD')][30:50,1], nan_policy='omit')
+    """
 
+    kresult = kruskal(results[('het')][:,1], results[('het', 'HD')][:,1],
+                      results[('het', 'NONHD')][:,1], nan_policy='omit')
+
+    x = results[('het')][:,1]
+    y = results[('het','HD')][:,1]
+
+    x = x[~np.isnan(x)]
+    ci_x = bootstrap((x,), np.median, method='percentile', confidence_level=.99)
+    print(np.median(x), ci_x.confidence_interval.low, ci_x.confidence_interval.high)
+
+    y = y[~np.isnan(y)]
+    ci_y = bootstrap((y,), np.median, method='percentile', confidence_level=.99)
+    print(np.median(y), ci_y.confidence_interval.low, ci_y.confidence_interval.high)

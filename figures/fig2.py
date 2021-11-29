@@ -79,6 +79,50 @@ def cdf(groups=INDEXES, categories=CONTEXTS, bins=200,
 
 if __name__ == '__main__':
 
-    results = rates_boxplot(cell_avg=False)
-    #results = modulations_boxplot()
+    from scripting.rett_memory.tools import stats
+
+    """
+    #Fig 2A
+    rates = rates_boxplot(cell_avg=True)
+    print('WT medians')
+    print(rates.loc[('wt',)].median())
+    print('WT IQRS')
+    print(rates.loc[('wt',)].quantile([.25, .75]))
+    print('WT Counts\n', rates.loc[('wt',)].count())
+
+    print('_____________')
+    print('rtt medians')
+    print(rates.loc[('het',)].median())
+    print('RTT IQRS')
+    print(rates.loc[('het',)].quantile([.25, .75]))
+    print('RTT Counts\n', rates.loc[('het',)].count())
+
+    print('_____________')
+    print('WT STATS')
+    print(stats.column_compare(rates)['wt'])
+    print('_____________')
+    print('RTT STATS')
+    print(stats.column_compare(rates)['het'])
+    """
+
+    #Fig 2B
+    mods = modulations_boxplot()
+    print('WT medians')
+    print(mods.loc[('wt',)].median())
+    print('WT IQRS')
+    print(mods.loc[('wt',)].quantile([.25, .75]))
+    print('WT Counts\n', mods.loc[('wt',)].count())
+
+    print('_____________')
+    print('rtt medians')
+    print(mods.loc[('het',)].median())
+    print('RTT IQRS')
+    print(mods.loc[('het',)].quantile([.25, .75]))
+    print('RTT Counts\n', mods.loc[('het',)].count())
+
+
+    print('_____________')
+    print('STATS')
+    print(stats.row_compare(mods))
+
     #results = cdf()
