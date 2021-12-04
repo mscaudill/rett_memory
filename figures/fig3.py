@@ -145,6 +145,46 @@ def coactivity_rates_boxplot(groups=[('wt',), ('het',),
                      showfliers=showfliers)
     return mean_rates, all_rates
 
+#12/1
+def coactivity_rates_boxplot2(groups=[('wt', 'CO'), ('het',),
+                                     ('het', 'CO'),
+                                     ('het', 'NONCO')],
+                             categories=['Fear_2'], 
+                             ylabel='Event Rates', showfliers=False):
+    """Boxplots the rates for all cells, coactive cells and non-coactive 
+    cells."""
+
+    #read the dataframe and the animals to plot
+    df = pd.read_pickle(DATAPATH)
+    with open(ANIMALPATH, 'rb') as infile:
+        animals = pickle.load(infile)
+    data = pdtools.filter_df(df, animals)
+    #compute the spike rates
+    spike_rates = rates.Rate(data).measure()
+    #identify cells as co-active or non co-active
+    cocells = activity.CoactiveCells(data).measure().astype(bool)
+    #get the rates of the co/non-co active cells
+    corates = spike_rates.loc[cocells.Fear_2]
+    noncorates = spike_rates.loc[~cocells.Fear_2]
+
+
+    #extract and store rates for plotting
+    results = dict()
+    results[('het', 'CO')] = np.array(corates.loc[('het',)]['Fear_2'],
+                                      dtype=float)
+
+    results[('het', 'NONCO')] = np.array(noncorates.loc[('het',)]['Fear_2'],
+                                         dtype=float)
+
+    results[('wt', 'CO')] = np.array(corates.loc[('wt',)]['Fear_2'],
+                               dtype=float)
+
+    results[('het',)] = np.array(spike_rates.loc[('het',)]['Fear_2'],
+                                dtype=float)
+    #make categorical boxplot
+    plotting.boxplot(results, categories, groups, ylabel=ylabel,
+                     showfliers=showfliers)
+    return results
 
 def sample_graphs(exps=[('wt', 'N087', 'NA'), ('het', 'N229', 'NA'),
                         ('wt','N008', 'NA'), ('het','N014','NA'),
@@ -283,18 +323,26 @@ def high_degree_rates( ylabel='Event Rates', showfliers=False, **kwargs):
                                                 ['Neutral','Fear_2']],
                                                 dtype=float)
 
-    results[('wt')] = np.array(spike_rates.loc[('wt',)][
+    results[('wt', 'HD')] = np.array(hd_rates.loc[('wt',)][
                                                 ['Neutral','Fear_2']],
                                                 dtype=float)
 
-    results[('het')] = np.array(spike_rates.loc[('het',)][
+    results[('wt', 'NONHD')] = np.array(nhd_rates.loc[('wt',)][
+                                                ['Neutral','Fear_2']],
+                                                dtype=float)
+
+
+    results[('wt',)] = np.array(spike_rates.loc[('wt',)][
+                                                ['Neutral','Fear_2']],
+                                                dtype=float)
+
+    results[('het',)] = np.array(spike_rates.loc[('het',)][
                                                 ['Neutral','Fear_2']],
                                                 dtype=float)
 
     plotting.boxplot(results, ['Neutral', 'Fear_2'], groups=[
-                     ('wt'), ('het'), ('het', 'HD'),('het','NONHD')], 
-                     ylabel=ylabel, showfliers=showfliers, notch=True,
-                     bootstrap=1000, **kwargs)
+                     ('het',), ('het', 'HD'),('het','NONHD')], 
+                     ylabel=ylabel, showfliers=showfliers, **kwargs)
 
     return results
 
@@ -328,15 +376,15 @@ if __name__ == '__main__':
     print(stats.row_compare(results))
     """
   
-    """
+    """ 
     #Fig 3D
     results, all_rates = coactivity_rates_boxplot()
     s = stats.row_compare(results)
-    print('wt medians')
-    print(all_rates.loc[('wt',)].median())
+    print('WT Coactive medians')
+    print(results.loc[('wt',slice(None), True)].median())
     print('wt IQRS')
-    print(all_rates.loc[('wt',)].quantile(q=[.25, .75]))
-    print('WT Counts\n', all_rates.loc[('wt')].count())
+    print(results.loc[('wt',slice(None), True)].quantile(q=[.25, .75]))
+    print('WT Counts\n', results.loc[('wt', slice(None), True)].count())
     
     print('_____________')
     print('RTT medians')
@@ -359,16 +407,33 @@ if __name__ == '__main__':
     print(results.loc[('het', slice(None), False)].quantile([0.25, 0.75]))
     print('Counts\n', results.loc[('het', slice(None), False)].count())
 
-    kresult = kruskal(all_rates.loc[('wt',)]['Fear_2'],
+    kresult = kruskal(results.loc[('wt',slice(None), True)]['Fear_2'],
                       all_rates.loc[('het')]['Fear_2'],
                       results.loc[('het', slice(None), True)]['Fear_2'],
                       results.loc[('het', slice(None), False)]['Fear_2'])
     """
+    
+
+    """
+    #FIG 3D V2
+    results = coactivity_rates_boxplot2()
+
+    het_co = results[('het', 'CO')]
+    wt_co = results[('wt', 'CO')]
+    y = het_co
+    ci_y = bootstrap((y,), np.median, method='percentile',
+            confidence_level=.95)
+    print('RTT CO Median {}, RTT CO Median CI [{}, {}]'.format(np.median(y), 
+          ci_y.confidence_interval.low, ci_y.confidence_interval.high))
+    print('WT CO Median {}'.format(np.nanmedian(wt_co)))
+    """
+
 
 
     """#Fig 3F
     sample_graphs()
     """
+
 
     """
     #Fig 3G
@@ -388,7 +453,7 @@ if __name__ == '__main__':
 
     s = stats.column_compare(results)
     """
-    
+
 
     """
     #Fig 3H
@@ -408,53 +473,44 @@ if __name__ == '__main__':
 
     s  =stats.column_compare(results)
     """
+    
 
     #Fig 3I
     results = high_degree_rates()
-    print('WT medians')
-    print(np.nanmedian(results[('wt')][:,0]))
-    print('WT IQRS')
-    print(np.nanpercentile(results[('wt')][:,0], q=[25, 75]))
-    print('WT Counts\n', np.count_nonzero(~np.isnan(results[('wt')][:,0])))
+    print('RTT HD Neutral medians')
+    print(np.nanmedian(results[('het', 'HD')][:,0]))
+    print('RTT HD Neutral IQRS')
+    print(np.nanpercentile(results[('het', 'HD')][:,0], q=[25, 75]))
+    print('RTT HD Neutral Counts\n',
+            np.count_nonzero(~np.isnan(results[('het', 'HD')][:,0])))
     print('_________')
-    print('RTT medians')
-    print(np.nanmedian(results[('het')][:,1]))
-    print('RTT IQRS')
-    print(np.nanpercentile(results[('het')][:,1], q=[25, 75]))
-    print('RTT Counts\n', np.count_nonzero(~np.isnan(results[('het')][:,1])))
+    print('RTT Fear2 medians')
+    print(np.nanmedian(results[('het',)][:,0]))
+    print('RTT Fear2 IQRS')
+    print(np.nanpercentile(results[('het',)][:,0], q=[25, 75]))
+    print('RTT Fear2 Counts\n', 
+            np.count_nonzero(~np.isnan(results[('het',)][:,1])))
     print('_________')
-    print('RTT HD medians')
+    print('RTT HD Fear2 Medians')
     print(np.nanmedian(results[('het', 'HD')][:,1]))
-    print('RTT HD IQRS')
+    print('RTT HD Fear2 IQRS')
     print(np.nanpercentile(results[('het', 'HD')][:,1], q=[25, 75]))
-    print('RTT HD Counts\n', 
+    print('RTT HD Fear2 Counts\n', 
           np.count_nonzero(~np.isnan(results[('het', 'HD')][:,1])))
     print('_________')
-    print('RTT NONHD medians')
+    print('RTT NONHD Fear2 medians')
     print(np.nanmedian(results[('het', 'NONHD')][:,1]))
-    print('RTT NONHD IQRS')
+    print('RTT NONHD Fear2 IQRS')
     print(np.nanpercentile(results[('het', 'NONHD')][:,1], q=[25, 75]))
-    print('RTT NONHD Counts\n', 
+    print('RTT NONHD Fear2 Counts\n', 
           np.count_nonzero(~np.isnan(results[('het', 'NONHD')][:,1])))
-    
-    """
-    kresult = kruskal(results[('wt')][30:50,0],
-                      results[('het')][30:50,0],
-                      results[('het')][30:50,1],
-                      results[('het', 'HD')][30:50,1],
-                      results[('het', 'NONHD')][30:50,1], nan_policy='omit')
-    """
+    print('_________')
+    het_HD_Neutral = results[('het', 'HD')][:,0]
+    het_HD_Fear2 = results[('het','HD')][:,1]
 
-    kresult = kruskal(results[('het')][:,1], results[('het', 'HD')][:,1],
-                      results[('het', 'NONHD')][:,1], nan_policy='omit')
-
-    x = results[('het')][:,1]
-    y = results[('het','HD')][:,1]
-
-    x = x[~np.isnan(x)]
-    ci_x = bootstrap((x,), np.median, method='percentile', confidence_level=.99)
-    print(np.median(x), ci_x.confidence_interval.low, ci_x.confidence_interval.high)
-
-    y = y[~np.isnan(y)]
-    ci_y = bootstrap((y,), np.median, method='percentile', confidence_level=.99)
-    print(np.median(y), ci_y.confidence_interval.low, ci_y.confidence_interval.high)
+    y = het_HD_Fear2[~np.isnan(het_HD_Fear2)]
+    ci_y = bootstrap((y,), np.median, method='percentile',
+            confidence_level=.99)
+    print('RTT HD Median {}, RTT HD Median CI [{}, {}]'.format(np.median(y), 
+          ci_y.confidence_interval.low, ci_y.confidence_interval.high))
+    print('RTT Neutral HD Median {}'.format(np.nanmedian(het_HD_Neutral)))
