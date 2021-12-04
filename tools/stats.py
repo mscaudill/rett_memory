@@ -126,6 +126,8 @@ def mwu(arr1, arr2, **kwargs):
             kwargs:                 passed to scipy stats.mannwhitneyu
         """
 
+        arr1 = np.array(arr1)
+        arr2 = np.array(arr2)
         #ignore NAN policy
         x = arr1[~np.isnan(arr1)]
         y = arr2[~np.isnan(arr2)]
