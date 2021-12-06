@@ -61,6 +61,7 @@ def dredd_rescue():
 
     path = paths.data.joinpath('dredd_freezes_df.pkl')
     df = pd.read_pickle(path)
+    df.sort_index()
     #groups = np.unique(df.index.droplevel('mouse_id'))
     groups = [('sst-cre', 'mcherry'),
               ('sst-cre', 'hm4d'),
@@ -69,9 +70,11 @@ def dredd_rescue():
     data = pdtools.df_to_dict(df, groups=groups, categories=df.columns)
     plotting.boxplot(data, categories=df.columns, groups=groups,
                      ylabel='Freezing (%)', showfliers=False)
-    return df
+    return df, data
 
 if __name__ == '__main__':
+
+    from scipy.stats import kruskal
 
     plt.ion()
     # Figure 5A
@@ -86,14 +89,76 @@ if __name__ == '__main__':
 
     #Figure 5C
     """
-    areas = som_areas()
-    print(stats.row_compare(areas))
+    df = som_areas()
+    print('SOM')
+    print('medians')
+    print(df.loc[('sstcre')].median())
+    print('IQRS')
+    print(df.loc[('sstcre')].quantile([.25, .75]))
+    print('Counts\n', 
+          df.loc[('sstcre')].count())
+    print('_____________\n')
+    
+    print('RTT SOM')
+    print('medians')
+    print(df.loc[('ssthet')].median())
+    print('IQRS')
+    print(df.loc[('ssthet')].quantile([.25, .75]))
+    print('Counts\n', 
+          df.loc[('ssthet')].count())
+    print('_____________\n')
+
+    print('Statistics')
+    print(stats.row_compare(df))
     """
 
     #Figure 5E
-    data = dredd_rescue()
-    s = stats.row_compare(data)
+    df, data_dict = dredd_rescue()
+
+    print('########  som-cre mcherry  ########')
+    print('medians')
+    print(df.loc[('sst-cre',slice(None), 'mcherry')].median())
+    print('IQRS')
+    print(df.loc[('sst-cre',slice(None), 'mcherry')].quantile([.25, .75]))
+    print('Counts\n', 
+          df.loc[('sst-cre', slice(None), 'mcherry')].count())
+    print('_____________\n')
+
+    print('########  som-cre HM4D  ########')
+    print('medians')
+    print(df.loc[('sst-cre',slice(None), 'hm4d')].median())
+    print('IQRS')
+    print(df.loc[('sst-cre',slice(None), 'hm4d')].quantile([.25, .75]))
+    print('Counts\n', 
+          df.loc[('sst-cre', slice(None), 'hm4d')].count())
+    print('_____________\n')
+
+    print('########  som-cre RTT mcherry  ########')
+    print('medians')
+    print(df.loc[('sst-cre_rtt',slice(None), 'mcherry')].median())
+    print('IQRS')
+    print(df.loc[('sst-cre_rtt',slice(None), 'mcherry')].quantile([.25, .75]))
+    print('Counts\n', 
+          df.loc[('sst-cre_rtt', slice(None), 'mcherry')].count())
+    print('_____________\n')
+
+    print('########  som-cre RTT HM3D  ########')
+    print('medians')
+    print(df.loc[('sst-cre_rtt',slice(None), 'hm3d')].median())
+    print('IQRS')
+    print(df.loc[('sst-cre_rtt',slice(None), 'hm3d')].quantile([.25, .75]))
+    print('Counts\n', 
+          df.loc[('sst-cre_rtt', slice(None), 'hm3d')].count())
+    print('_____________\n')
+
+    print('Statistics')
+    s = stats.row_compare(df)
     for context, vals in s.items():
         print('------{}-----'.format(context))
         print(vals)
         print('\n')
+
+    print('Neutral Omnibus')
+    arrs = [x[:,0] for x in data_dict.values()]
+    kresult = kruskal(*arrs)
+    print(kresult)
