@@ -48,22 +48,28 @@ def som_areas():
     categories = ['Neutral','Fear','Fear_2']
     groups = [('sstcre',), ('ssthet',)]
     df = pd.read_pickle(paths.data.joinpath('som_signals_df.pkl'))
-    """
-    #filter by top 80% of performning animals
-    animals_path = paths.data.joinpath('P80_som_animals.pkl')
-    with open(animals_path, 'rb') as infile:
-        som_animals = pickle.load(infile)
-    data = pdtools.filter_df(df, som_animals)
-    """
-    data = df
-    areas = AreaActivity(data).measure(cell_avg=True)
+    areas = AreaActivity(df).measure(cell_avg=True)
     #convert to a dict for plotting and boxplot
     result_dict = pdtools.df_to_dict(areas, groups, categories)
     plotting.boxplot(result_dict, categories, groups, 
-                     ylabel='Response (Area)')
-    
-    print(stats.row_compare(areas))
+                     ylabel='Response (Area)', showfliers=False)
     return areas
+
+def dredd_rescue():
+    """Boxplots the freezing percentages of mice treated with a dredd or
+    vehicle for Figure 5E of the paper."""
+
+    path = paths.data.joinpath('dredd_freezes_df.pkl')
+    df = pd.read_pickle(path)
+    #groups = np.unique(df.index.droplevel('mouse_id'))
+    groups = [('sst-cre', 'mcherry'),
+              ('sst-cre', 'hm4d'),
+              ('sst-cre_rtt', 'mcherry'),
+              ('sst-cre_rtt', 'hm3d')]
+    data = pdtools.df_to_dict(df, groups=groups, categories=df.columns)
+    plotting.boxplot(data, categories=df.columns, groups=groups,
+                     ylabel='Freezing (%)', showfliers=False)
+    return df
 
 if __name__ == '__main__':
 
@@ -79,4 +85,15 @@ if __name__ == '__main__':
     """
 
     #Figure 5C
+    """
     areas = som_areas()
+    print(stats.row_compare(areas))
+    """
+
+    #Figure 5E
+    data = dredd_rescue()
+    s = stats.row_compare(data)
+    for context, vals in s.items():
+        print('------{}-----'.format(context))
+        print(vals)
+        print('\n')
