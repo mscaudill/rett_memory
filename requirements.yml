@@ -9,6 +9,7 @@ dependencies:
     - tifffile
     - pillow
     - scikit-image
+    - openpyxl
     - pytest
     - notebook
     - graphviz
