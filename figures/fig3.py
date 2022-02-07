@@ -145,47 +145,6 @@ def coactivity_rates_boxplot(groups=[('wt',), ('het',),
                      showfliers=showfliers)
     return mean_rates, all_rates
 
-#12/1
-def coactivity_rates_boxplot2(groups=[('wt', 'CO'), ('het',),
-                                     ('het', 'CO'),
-                                     ('het', 'NONCO')],
-                             categories=['Fear_2'], 
-                             ylabel='Event Rates', showfliers=False):
-    """Boxplots the rates for all cells, coactive cells and non-coactive 
-    cells."""
-
-    #read the dataframe and the animals to plot
-    df = pd.read_pickle(DATAPATH)
-    with open(ANIMALPATH, 'rb') as infile:
-        animals = pickle.load(infile)
-    data = pdtools.filter_df(df, animals)
-    #compute the spike rates
-    spike_rates = rates.Rate(data).measure()
-    #identify cells as co-active or non co-active
-    cocells = activity.CoactiveCells(data).measure().astype(bool)
-    #get the rates of the co/non-co active cells
-    corates = spike_rates.loc[cocells.Fear_2]
-    noncorates = spike_rates.loc[~cocells.Fear_2]
-
-
-    #extract and store rates for plotting
-    results = dict()
-    results[('het', 'CO')] = np.array(corates.loc[('het',)]['Fear_2'],
-                                      dtype=float)
-
-    results[('het', 'NONCO')] = np.array(noncorates.loc[('het',)]['Fear_2'],
-                                         dtype=float)
-
-    results[('wt', 'CO')] = np.array(corates.loc[('wt',)]['Fear_2'],
-                               dtype=float)
-
-    results[('het',)] = np.array(spike_rates.loc[('het',)]['Fear_2'],
-                                dtype=float)
-    #make categorical boxplot
-    plotting.boxplot(results, categories, groups, ylabel=ylabel,
-                     showfliers=showfliers)
-    return results
-
 def sample_graphs(exps=[('wt', 'N087', 'NA'), ('het', 'N229', 'NA'),
                         ('wt','N008', 'NA'), ('het','N014','NA'),
                         ('wt','N083','NA'),('het','sn221','NA')]):
@@ -380,12 +339,26 @@ if __name__ == '__main__':
     #Fig 3D
     results, all_rates = coactivity_rates_boxplot()
     s = stats.row_compare(results)
+    print('WT medians')
+    print(all_rates.loc[('wt',)].median())
+    print('WT IQRS')
+    print(all_rates.loc[('wt',)].quantile(q=[.25, .75]))
+    print('WT Counts\n', all_rates.loc[('wt')].count())
+
+    print('_____________')
     print('WT Coactive medians')
     print(results.loc[('wt',slice(None), True)].median())
-    print('wt IQRS')
+    print('wt Coactive IQRS')
     print(results.loc[('wt',slice(None), True)].quantile(q=[.25, .75]))
-    print('WT Counts\n', results.loc[('wt', slice(None), True)].count())
+    print('WT Coactive Counts\n', results.loc[('wt', slice(None), True)].count())
     
+    print('_____________')
+    print('WT NonCo medians')
+    print(results.loc[('wt',slice(None), False)].median())
+    print('wt NonCo IQRS')
+    print(results.loc[('wt',slice(None), False)].quantile(q=[.25, .75]))
+    print('WT NonCo Counts\n', results.loc[('wt', slice(None), False)].count())
+
     print('_____________')
     print('RTT medians')
     print(all_rates.loc[('het',)].median())
@@ -398,42 +371,27 @@ if __name__ == '__main__':
     print(results.loc[('het', slice(None), True)].median())
     print('RTT Coactive IQRS')
     print(results.loc[('het', slice(None), True)].quantile([0.25, 0.75]))
-    print('Counts\n', results.loc[('het', slice(None), True)].count())
+    print('RTT Coactive Counts\n', results.loc[('het', slice(None), True)].count())
 
     print('_____________')
     print('RTT NonCo medians')
     print(results.loc[('het',slice(None), False)].median())
     print('RTT NonCo IQRS')
     print(results.loc[('het', slice(None), False)].quantile([0.25, 0.75]))
-    print('Counts\n', results.loc[('het', slice(None), False)].count())
+    print('RTT NonCo Counts\n', results.loc[('het', slice(None), False)].count())
 
     kresult = kruskal(results.loc[('wt',slice(None), True)]['Fear_2'],
+                      results.loc[('wt', slice(None), False)]['Fear_2'],
+                      all_rates.loc[('wt')]['Fear_2'],
                       all_rates.loc[('het')]['Fear_2'],
                       results.loc[('het', slice(None), True)]['Fear_2'],
                       results.loc[('het', slice(None), False)]['Fear_2'])
     """
     
 
-    """
-    #FIG 3D V2
-    results = coactivity_rates_boxplot2()
-
-    het_co = results[('het', 'CO')]
-    wt_co = results[('wt', 'CO')]
-    y = het_co
-    ci_y = bootstrap((y,), np.median, method='percentile',
-            confidence_level=.95)
-    print('RTT CO Median {}, RTT CO Median CI [{}, {}]'.format(np.median(y), 
-          ci_y.confidence_interval.low, ci_y.confidence_interval.high))
-    print('WT CO Median {}'.format(np.nanmedian(wt_co)))
-    """
-
-
-
-    """#Fig 3F
+    """#Fig 3E
     sample_graphs()
     """
-
 
     """
     #Fig 3G
@@ -454,8 +412,7 @@ if __name__ == '__main__':
     s = stats.column_compare(results)
     """
 
-
-    """
+    """ 
     #Fig 3H
     results = enemble_degree_boxplot(showfliers=False)
     print('wt medians')
@@ -474,7 +431,7 @@ if __name__ == '__main__':
     s  =stats.column_compare(results)
     """
     
-
+    
     #Fig 3I
     results = high_degree_rates()
     print('RTT HD Neutral medians')
@@ -509,8 +466,17 @@ if __name__ == '__main__':
     het_HD_Fear2 = results[('het','HD')][:,1]
 
     y = het_HD_Fear2[~np.isnan(het_HD_Fear2)]
-    ci_y = bootstrap((y,), np.median, method='percentile',
-            confidence_level=.99)
-    print('RTT HD Median {}, RTT HD Median CI [{}, {}]'.format(np.median(y), 
-          ci_y.confidence_interval.low, ci_y.confidence_interval.high))
-    print('RTT Neutral HD Median {}'.format(np.nanmedian(het_HD_Neutral)))
+    z = het_HD_Neutral[~np.isnan(het_HD_Neutral)]
+    
+    def delta(x, y):
+        """Return the median differences between two drawn bootstrap
+        samples."""
+      
+        return np.median(x) - np.median(y)
+
+    ci_delta = bootstrap((y, z), delta, method='percentile',
+            confidence_level=.95, vectorized=False, n_resamples=10000)
+    print('RTT delta CI [{},{}]'.format(ci_delta.confidence_interval.low, 
+                                        ci_delta.confidence_interval.high))
+    
+    

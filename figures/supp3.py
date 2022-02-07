@@ -222,10 +222,10 @@ if __name__ == '__main__':
     #ax = plot_source_mip()
     #ax = plot_mipsource_rois()
     #axarr = plot_cxt_mips() 
-    axarr = plot_cxt_mips_zoom() 
+    #axarr = plot_cxt_mips_zoom() 
     #ax = plot_displacements_N006()
     #ax = hist_N006_displacements()
-    #ax, results = hist_displacements(cxts=['T','F1', 'N1', 'F2'])
+    ax, results = hist_displacements(cxts=['T','F1', 'N1', 'F2'])
     plt.show()
 
 
