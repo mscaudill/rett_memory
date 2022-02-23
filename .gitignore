@@ -8,6 +8,7 @@
 #data and processing dirs
 __data__/
 casia/
+builds/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
