@@ -21,7 +21,7 @@ CONTEXTS = ['Neutral', 'Fear', 'Fear_2']
 
 
 def rasters(exps=RASTER_EXPS, cxts=RASTER_CXTS, df=None, bdf=None):
-    """Constructs the raseters and network activity traces of panels A and
+    """Constructs the rasters and network activity traces of panels A and
     B for Figure 3 of the paper."""
 
     #scale amplitude of network activity by a multiple to make easier to see
@@ -79,7 +79,7 @@ def rasters(exps=RASTER_EXPS, cxts=RASTER_CXTS, df=None, bdf=None):
 def coactivity_boxplot(groups=INDEXES, categories=CONTEXTS, 
                        ylabel='Coactive Cell Percentage', showfliers=False):
     """Constructs a boxplot of the percentage of coactive cells during the
-    peak of the network activity trace for figure 3C of the paper."""
+    peak of the network activity trace for Figure 3C of the paper."""
 
     #read the dataframe and the animals to plot
     df = pd.read_pickle(DATAPATH)
@@ -103,7 +103,7 @@ def coactivity_rates_boxplot(groups=[('wt',), ('het',),
                              categories=['Fear_2'], 
                              ylabel='Event Rates', showfliers=False):
     """Boxplots the rates for all cells, coactive cells and non-coactive 
-    cells."""
+    cells. This is Figure 3D."""
 
     #read the dataframe and the animals to plot
     df = pd.read_pickle(DATAPATH)
@@ -150,16 +150,6 @@ def sample_graphs(exps=[('wt', 'N087', 'NA'), ('het', 'N229', 'NA'),
                         ('wt','N083','NA'),('het','sn221','NA')]):
     """Plots sample graphs for 3 WT and 3 RTT mice for panel F of Fig 3."""
 
-
-
-    """
-    exps=[('wt', 'N087', 'NA'),('het', 'N229', 'NA'),
-                    ('wt', 'N008', 'NA'), ('het','N014','NA'),
-                    ('wt','N083','NA'),('het','N075','NA'),
-                    ('wt','N087','NA'),('het','sn221','NA'),
-                    ('wt','N019','NA'),('het','N075','NA')]
-    """
-
     #read in needed dataframes
     pairs_df = pd.read_pickle(paths.data.joinpath('correlated_pairs_df.pkl'))
     hd_df = pd.read_pickle(paths.data.joinpath('high_degree_df.pkl'))
@@ -190,7 +180,7 @@ def sample_graphs(exps=[('wt', 'N087', 'NA'), ('het', 'N229', 'NA'),
 
 def ensemble_size_boxplot(groups=INDEXES, categories=CONTEXTS, **kwargs):
     """Constructs a boxplot of the number of High-degree cells in each group
-    and context.
+    and context. This is Figure 3G.
 
     Args:
         groups (list):              list of dataframe keys to display
@@ -209,6 +199,7 @@ def ensemble_size_boxplot(groups=INDEXES, categories=CONTEXTS, **kwargs):
 
 def enemble_degree_boxplot(groups=INDEXES, categories=CONTEXTS, **kwargs):
     """Constructs a boxplot of the average degree of the high degree cells.
+    This is Figure 3H.
     
     Args:
         groups (list):              list of dataframe keys to display
@@ -243,7 +234,7 @@ def enemble_degree_boxplot(groups=INDEXES, categories=CONTEXTS, **kwargs):
     return results_df
 
 def high_degree_rates( ylabel='Event Rates', showfliers=False, **kwargs):
-    """ """
+    """Plots the event rates for the high-degree cells in Fig 3I."""
 
     #read the dataframe and the animals to plot
     df = pd.read_pickle(DATAPATH)
@@ -389,7 +380,7 @@ if __name__ == '__main__':
     """
     
 
-    """#Fig 3E
+    """#Fig 3F
     sample_graphs()
     """
 
