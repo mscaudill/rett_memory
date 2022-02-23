@@ -59,7 +59,7 @@ def rasters(exps=RASTER_EXPS, cxts=RASTER_CXTS, df=None, bdf=None):
         rects = [Rectangle((c[0], bottom), width=c[1]-c[0], height=height,
                  facecolor='gray', alpha=0.25) for c in cross_times]
         [axarr[idx].add_patch(rect) for rect in rects]
-        #add scalebar 1 unit = gain HZ
+        #add scalebar gain units = 1 HZ
         axarr[idx].plot([10,10], [ncells + 2, ncells + 2 + gain],
                         color='pink')
 
