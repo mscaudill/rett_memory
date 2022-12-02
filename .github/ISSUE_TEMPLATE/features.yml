@@ -18,7 +18,7 @@ body:
     attributes:
       label: Describe the Feature Request
       description: A concise description of what the proposed feature does.
-      validations:
+    validations:
         required: true
 
   # Describe its use
