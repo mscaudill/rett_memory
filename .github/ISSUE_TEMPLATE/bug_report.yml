@@ -10,6 +10,7 @@ body:
     description: Please search to see if this issue already exists for this bug.
     options:
     - label: I have searched the existing issues
+  validations:
       required: true
 
 # input for a title for this bug
@@ -17,8 +18,8 @@ body:
   attributes:
     label: Title
     placeholder: "A short title for the bug"
-    validations:
-      required: true
+  validations:
+    required: true
 
 # What user is experiencing box
 - type: textarea
