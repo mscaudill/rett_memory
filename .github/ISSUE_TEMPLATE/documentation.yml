@@ -1,6 +1,6 @@
 name: 📖 Documentation Issue
 description: Documentation needs clarification.
-labels: [Documentation, DOCS]
+labels: [documentation]
 title: "[DOCS]: <Title>"
 body:
   
