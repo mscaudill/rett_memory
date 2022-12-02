@@ -55,8 +55,8 @@ body:
   attributes:
     label: Environment
     placeholder: "Ubuntu 20.04"
-    validations:
-      required: true
+  validations:
+    required: true
 
 # Anything else
 - type: textarea
