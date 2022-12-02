@@ -1,7 +1,7 @@
-name: 🔴 BUG
+name: 🐞 BUG
 description: File a bug report
 labels: [Bug]
-title: "[BUG]: "
+title: "[BUG]: <Title>"
 body:
 
   # validate if this issue already exist
