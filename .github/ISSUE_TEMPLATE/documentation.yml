@@ -1,0 +1,43 @@
+name: 📖 Documentation Issue
+description: Documentation needs clarification.
+labels: [Documentation, DOCS]
+title: "[DOCS]: <Title>"
+body:
+  
+  # validate if this issue already exist
+  - type: checkboxes
+    attributes:
+      label: Is there an existing issue for this?
+      description: Please search to see if this issue already exists for this bug.
+      options:
+      - label: I have searched the existing issues
+        required: true
+
+  # Documentation location
+  - type: input
+    attributes:
+      label: Location
+      placeholder: "openseize.filtering.fir.Butterworth"
+    validations:
+      required: false
+
+  # What needs clarifying?
+  - type: textarea
+    attributes:
+      label: 
+      description: >
+        Please describe why the documentation needs clarifying.
+    validations:
+      required: false
+
+  # Code of Conduct
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: > 
+        By submitting this issue, you agree to follow our 
+        [Code of Conduct](https://example.com)
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
