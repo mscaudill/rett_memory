@@ -1,6 +1,6 @@
 name: 📖 Documentation Issue
 description: Documentation needs clarification.
-label: [Documentation, DOCS]
+labels: [Documentation, DOCS]
 title: "[DOCS]: <Title>"
 body:
   
@@ -24,8 +24,7 @@ body:
   # What needs clarifying?
   - type: textarea
     attributes:
-      label: 
-      description: >
+      label: >
         Please describe why the documentation needs clarifying.
     validations:
       required: true
