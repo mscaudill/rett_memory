@@ -15,9 +15,9 @@ body:
 
   # Describe your idea
   - type: textarea
-      attributes:
-        label: Describe the Feature Request
-        description: A concise description of what the proposed feature does.
+    attributes:
+      label: Describe the Feature Request
+      description: A concise description of what the proposed feature does.
       validations:
         required: true
 
