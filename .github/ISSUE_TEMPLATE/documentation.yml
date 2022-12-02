@@ -1,6 +1,6 @@
 name: 📖 Documentation Issue
 description: Documentation needs clarification.
-labels: [Documentation, DOCS]
+label: [Documentation, DOCS]
 title: "[DOCS]: <Title>"
 body:
   
@@ -19,7 +19,7 @@ body:
       label: Location
       placeholder: "openseize.filtering.fir.Butterworth"
     validations:
-      required: false
+      required: true
 
   # What needs clarifying?
   - type: textarea
@@ -28,7 +28,7 @@ body:
       description: >
         Please describe why the documentation needs clarifying.
     validations:
-      required: false
+      required: true
 
   # Code of Conduct
   - type: checkboxes
