@@ -9,16 +9,14 @@ body:
     attributes:
       label: Has this question been asked before?
       options:
-      - label: I have searched the existing issues
+      - label: I have searched the existing issues for this question.
         required: true
 
   # question box
   - type: textarea
     attributes:
-      label: Current Behavior
-      description: | 
-        Concisely state your question.
-
+      label: Question
+      description: >
         Tip:  You can attach images or log files by clicking 
         this area to highlight it and then dragging files in.
     validations:
